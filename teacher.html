@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <style>
 :root{
   --paper:#F7F8F3; --grid:rgba(38,74,112,.09);
@@ -60,6 +61,53 @@ tr:hover td{background:#FAFBF8}
 .p-risk{background:#FBE3DF;color:var(--risk)} .p-none{background:#EDF1F5;color:var(--ink-soft)}
 .sub{font-size:11.5px;color:var(--ink-soft)}
 footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:24px}
+
+/* ---------- charts ---------- */
+.charts{display:grid;grid-template-columns:1fr 1.4fr;gap:14px;margin-bottom:16px}
+@media(max-width:760px){.charts{grid-template-columns:1fr}}
+.chartcard{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.chartcard h3{font-family:'Mitr';font-size:15px;margin-bottom:10px}
+.chartbox{position:relative;height:220px}
+
+/* ---------- risk list ---------- */
+.risklist{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:6px 0;margin-bottom:16px}
+.risklist h3{font-family:'Mitr';font-size:15px;padding:12px 18px 4px}
+.riskrow{display:flex;align-items:center;gap:12px;padding:10px 18px;border-top:1px solid #EEF2F0;cursor:pointer}
+.riskrow:hover{background:#FAFBF8}
+.riskrow .rk{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Mitr';font-weight:600;font-size:12px;color:#fff;flex:none}
+.riskrow .info{flex:1;min-width:0}
+.riskrow .name{font-weight:600;font-size:14px}
+.riskrow .meta{font-size:12.5px;color:var(--ink-soft)}
+.riskrow .areas{font-size:12.5px;color:var(--risk)}
+.empty{padding:16px 18px;color:var(--ink-soft);font-size:13.5px}
+
+/* ---------- clickable rows ---------- */
+tbody tr{cursor:pointer}
+
+/* ---------- modal report ---------- */
+.overlay{position:fixed;inset:0;background:rgba(30,58,95,.45);display:flex;align-items:flex-start;justify-content:center;
+  padding:24px 14px;overflow:auto;z-index:50}
+.overlay.hidden{display:none}
+.modal{background:#fff;border-radius:16px;max-width:720px;width:100%;padding:26px 24px;position:relative}
+.modal .close{position:absolute;top:14px;right:16px;background:#EDF1F5;border:none;border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer}
+.modal h2{font-size:20px;margin-bottom:2px}
+.modal .sub{color:var(--ink-soft);font-size:13.5px;margin-bottom:16px}
+.repgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13.5px;margin-bottom:18px}
+.repgrid div b{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:600}
+.modal h4{font-family:'Mitr';font-size:15px;margin:18px 0 8px;border-top:1.5px dashed var(--line);padding-top:14px}
+.trend-table{width:100%;border-collapse:collapse;font-size:13px}
+.trend-table th,.trend-table td{padding:6px 8px;border-bottom:1px solid #EEF2F0;text-align:center}
+.trend-table td:first-child,.trend-table th:first-child{text-align:left}
+.printbtn{margin-top:18px}
+
+/* ---------- print ---------- */
+@media print{
+  body *{visibility:hidden}
+  #printArea, #printArea *{visibility:visible}
+  #printArea{position:absolute;top:0;left:0;width:100%;padding:20px}
+  .overlay{position:static;background:none;padding:0}
+  .modal .close, .printbtn{display:none}
+}
 </style>
 </head>
 <body>
@@ -95,6 +143,26 @@ footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:24px}
 
   <div class="stats" id="stats"></div>
 
+  <div class="charts">
+    <div class="chartcard">
+      <h3>สัดส่วนผล SDQ รวม</h3>
+      <div class="chartbox"><canvas id="donutChart"></canvas></div>
+    </div>
+    <div class="chartcard">
+      <h3>จำนวนกลุ่มเสี่ยง/มีปัญหา แยกตามห้อง</h3>
+      <div class="chartbox"><canvas id="roomChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="risklist">
+    <h3>🚩 รายชื่อกลุ่มเสี่ยง เรียงตามความเร่งด่วน</h3>
+    <div id="riskBody"></div>
+  </div>
+
+  <div class="tools">
+    <button class="btn-sm" onclick="printSummary()">🖨️ พิมพ์รายงานสรุปสำหรับ ผอ. (PDF)</button>
+  </div>
+
   <div class="tools">
     <select id="fRoom" onchange="render()"><option value="">ทุกห้อง</option></select>
     <select id="fResult" onchange="render()">
@@ -120,6 +188,18 @@ footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:24px}
 </div>
 
 <footer>ระบบดูแลช่วยเหลือนักเรียน · งานแนะแนว · ข้อมูลนี้เป็นความลับ ใช้เพื่อการดูแลนักเรียนเท่านั้น</footer>
+</div>
+
+<!-- MODAL: รายงานรายบุคคล -->
+<div class="overlay hidden" id="reportOverlay" onclick="if(event.target===this) closeReport()">
+  <div class="modal" id="reportModal">
+    <button class="close" onclick="closeReport()">✕</button>
+    <div id="reportContent">กำลังโหลด...</div>
+  </div>
+</div>
+
+<!-- พื้นที่สำหรับพิมพ์เป็น PDF (แสดงเฉพาะตอนสั่งพิมพ์) -->
+<div id="printArea" style="display:none"></div>
 </div>
 
 <script>
@@ -220,12 +300,131 @@ function render(){
     <div class="stat s-risk"><div class="n">${prob}</div><div class="l">SDQ มีปัญหา</div></div>`;
 
   document.getElementById('tbody').innerHTML = rows.length ? rows.map(x=>`
-    <tr>
+    <tr onclick="openReport('${x.id}')">
       <td>${x.room}</td><td>${x.no||''}</td><td>${x.id}</td><td>${x.name}</td>
       <td>${pill(x.sdq&&x.sdq.total)}</td>
       <td>${problemAreas(x.sdq)}</td>
       <td>${x.eq?(x.eq==='ปกติทุกด้าน'?'<span class="pill p-ok">ปกติทุกด้าน</span>':`<span class="pill p-warn">${x.eq}</span>`):'<span class="pill p-none">ยังไม่ทำ</span>'}</td>
     </tr>`).join('') : '<tr><td colspan="7">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';
+
+  drawCharts();
+  renderRiskList();
+}
+
+/* ---------- กราฟภาพรวม ---------- */
+let donutChart=null, roomChart=null;
+function drawCharts(){
+  const statusCount={ปกติ:0,เสี่ยง:0,มีปัญหา:0,'ยังไม่ทำ':0};
+  DATA.forEach(x=> statusCount[x.sdq?x.sdq.total:'ยังไม่ทำ']++ );
+
+  const ctx1=document.getElementById('donutChart');
+  if(donutChart) donutChart.destroy();
+  donutChart=new Chart(ctx1,{type:'doughnut',data:{
+    labels:Object.keys(statusCount),
+    datasets:[{data:Object.values(statusCount),
+      backgroundColor:['#3E9B6E','#DBA02E','#D65A4A','#C7D3DE'],borderWidth:0}]
+  },options:{plugins:{legend:{position:'bottom',labels:{font:{family:'Anuphan',size:12}}}}}});
+
+  const rooms=[...new Set(DATA.map(x=>x.room).filter(x=>x!=='—'))].sort();
+  const riskByRoom=rooms.map(r=>DATA.filter(x=>x.room===r&&x.sdq&&x.sdq.total==='เสี่ยง').length);
+  const probByRoom=rooms.map(r=>DATA.filter(x=>x.room===r&&x.sdq&&x.sdq.total==='มีปัญหา').length);
+  const ctx2=document.getElementById('roomChart');
+  if(roomChart) roomChart.destroy();
+  roomChart=new Chart(ctx2,{type:'bar',data:{labels:rooms,datasets:[
+    {label:'เสี่ยง',data:riskByRoom,backgroundColor:'#DBA02E'},
+    {label:'มีปัญหา',data:probByRoom,backgroundColor:'#D65A4A'}
+  ]},options:{responsive:true,maintainAspectRatio:false,
+    scales:{x:{stacked:true,ticks:{font:{family:'Anuphan',size:11}}},y:{stacked:true,beginAtZero:true,ticks:{stepSize:1}}},
+    plugins:{legend:{position:'bottom',labels:{font:{family:'Anuphan',size:12}}}}}});
+}
+
+/* ---------- รายชื่อกลุ่มเสี่ยงเรียงความเร่งด่วน ---------- */
+function urgencyScore(x){
+  if(!x.sdq) return -1;
+  let s = x.sdq.total==='มีปัญหา'?100:x.sdq.total==='เสี่ยง'?50:0;
+  const map={em:'อารมณ์',co:'ความประพฤติ',hy:'ไม่อยู่นิ่ง',pe:'เพื่อน'};
+  Object.keys(map).forEach(k=>{ if(x.sdq[k]==='มีปัญหา') s+=8; else if(x.sdq[k]==='เสี่ยง') s+=4; });
+  if(x.eq && x.eq!=='ปกติทุกด้าน') s += (x.eq.match(/,/g)||[]).length*2 + 3;
+  return s;
+}
+function renderRiskList(){
+  const rows=DATA.map(x=>({...x,score:urgencyScore(x)}))
+    .filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,15);
+  const box=document.getElementById('riskBody');
+  if(!rows.length){ box.innerHTML='<div class="empty">ยังไม่มีนักเรียนกลุ่มเสี่ยงตามข้อมูลปัจจุบัน 🎉</div>'; return; }
+  box.innerHTML = rows.map(x=>{
+    const c = x.score>=100 ? 'var(--risk)' : 'var(--warn)';
+    return `<div class="riskrow" onclick="openReport('${x.id}')">
+      <div class="rk" style="background:${c}">${x.room}</div>
+      <div class="info">
+        <div class="name">${x.name} <span class="sub">(${x.id})</span></div>
+        <div class="areas">${problemAreas(x.sdq).replace(/<[^>]+>/g,'')}${x.eq&&x.eq!=='ปกติทุกด้าน'?' · EQ: '+x.eq.replace('ต่ำกว่าเกณฑ์: ',''):''}</div>
+      </div>
+      ${pill(x.sdq&&x.sdq.total)}
+    </div>`;
+  }).join('');
+}
+
+/* ---------- รายงานรายบุคคล ---------- */
+async function openReport(id){
+  document.getElementById('reportOverlay').classList.remove('hidden');
+  document.getElementById('reportContent').innerHTML='กำลังโหลด...';
+  try{
+    const r=await api({action:'getStudentReport',token:TOKEN,studentId:id});
+    if(!r.ok){ document.getElementById('reportContent').innerHTML=`<div class="alert err" style="display:block">${r.message}</div>`; return; }
+    document.getElementById('reportContent').innerHTML = buildReportHTML(r);
+  }catch(e){ document.getElementById('reportContent').innerHTML='<div class="alert err" style="display:block">โหลดรายงานไม่สำเร็จ</div>'; }
+}
+function closeReport(){ document.getElementById('reportOverlay').classList.add('hidden'); }
+
+function buildReportHTML(r){
+  const y = r.yearly[0] || {};
+  const sdqRows = r.sdqHistory.map(h=>`<tr><td>${h.year}</td><td>${h.emotional.label}</td><td>${h.conduct.label}</td>
+    <td>${h.hyper.label}</td><td>${h.peer.label}</td><td><b>${h.total.label}</b></td></tr>`).join('');
+  const eqRows = r.eqHistory.map(h=>`<tr><td>${h.year}</td><td>${h.domain['ดี']}</td><td>${h.domain['เก่ง']}</td><td>${h.domain['สุข']}</td></tr>`).join('');
+  return `
+    <h2>${r.student.prefix}${r.student.first} ${r.student.last}</h2>
+    <div class="sub">เลขประจำตัว ${r.student.id} · ${y['ระดับชั้น']||''}/${y['ห้อง']||''} เลขที่ ${y['เลขที่']||''}</div>
+    <div class="repgrid">
+      <div><b>ผู้ปกครอง</b>${y['ชื่อผู้ปกครอง']||'—'} (${y['ความสัมพันธ์']||'—'})</div>
+      <div><b>เบอร์ผู้ปกครอง</b>${y['เบอร์ผู้ปกครอง']||'—'}</div>
+      <div><b>สถานภาพครอบครัว</b>${y['สถานภาพครอบครัว']||'—'}</div>
+      <div><b>อาศัยอยู่กับ</b>${y['อาศัยอยู่กับ']||'—'}</div>
+      <div><b>รายได้ครอบครัว</b>${y['รายได้ครอบครัว/เดือน']||'—'}</div>
+      <div><b>โรคประจำตัว</b>${y['โรคประจำตัว']||'—'}</div>
+    </div>
+    <h4>พัฒนาการ SDQ รายปี</h4>
+    ${sdqRows?`<table class="trend-table"><tr><th>ปี</th><th>อารมณ์</th><th>ความประพฤติ</th><th>ไม่อยู่นิ่ง</th><th>เพื่อน</th><th>รวม</th></tr>${sdqRows}</table>`:'<p class="sub">ยังไม่มีข้อมูล</p>'}
+    <h4>พัฒนาการ EQ รายปี (คะแนนรวม ดี-เก่ง-สุข)</h4>
+    ${eqRows?`<table class="trend-table"><tr><th>ปี</th><th>ดี</th><th>เก่ง</th><th>สุข</th></tr>${eqRows}</table>`:'<p class="sub">ยังไม่มีข้อมูล</p>'}
+    <button class="btn-sm printbtn" onclick="printReport('${r.student.id}')">🖨️ พิมพ์รายงานนี้ (PDF)</button>
+  `;
+}
+
+/* ---------- พิมพ์ ---------- */
+function printReport(id){
+  const content = document.getElementById('reportContent').innerHTML;
+  document.getElementById('printArea').innerHTML =
+    `<h1 style="font-family:Mitr">รายงานรายบุคคล</h1><p class="sub" style="margin-bottom:16px">${document.getElementById('schoolName').textContent}</p>${content}`;
+  document.getElementById('printArea').style.display='block';
+  window.print();
+  document.getElementById('printArea').style.display='none';
+}
+function printSummary(){
+  const y=document.getElementById('yearLabel').textContent;
+  const statsHtml=document.getElementById('stats').innerHTML;
+  const riskHtml=document.getElementById('riskBody').innerHTML;
+  document.getElementById('printArea').innerHTML = `
+    <h1 style="font-family:Mitr">รายงานสรุปสำหรับผู้บริหาร</h1>
+    <p class="sub" style="margin-bottom:4px">${document.getElementById('schoolName').textContent} · ${y}</p>
+    <p class="sub" style="margin-bottom:16px">พิมพ์เมื่อ ${new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})}</p>
+    <div class="stats" style="margin-bottom:20px">${statsHtml}</div>
+    <h4>🚩 รายชื่อกลุ่มเสี่ยง เรียงตามความเร่งด่วน</h4>
+    <div class="risklist" style="border:none;padding:0">${riskHtml}</div>
+  `;
+  document.getElementById('printArea').style.display='block';
+  window.print();
+  document.getElementById('printArea').style.display='none';
 }
 
 /* ถ้ามี token ค้างอยู่ ลองเข้าเลย */

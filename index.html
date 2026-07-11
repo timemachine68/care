@@ -99,7 +99,7 @@ footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:26px}
 <header>
   <span class="eyebrow">ระบบดูแลช่วยเหลือนักเรียน</span>
   <h1 id="schoolName">แบบข้อมูลนักเรียนรายบุคคล + แบบประเมิน SDQ</h1>
-  <p>ใช้เวลาประมาณ 10 นาที ทำบนมือถือได้เลย</p>
+  <p>แบ่งทำเป็นช่วงๆ ได้ ไม่ต้องทำให้เสร็จรวดเดียว ระบบจำข้อมูลที่ทำไปแล้วให้เอง</p>
 </header>
 
 <div class="progress">
@@ -193,6 +193,7 @@ footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:26px}
   <input id="f_disease" placeholder="-">
   <div class="alert err" id="err2"></div>
   <button class="btn-main" id="btnSave" onclick="saveYearly()">บันทึกและทำแบบประเมินต่อ</button>
+  <button class="btn-ghost" onclick="saveYearly(true)">บันทึกไว้ก่อน ทำแบบประเมินภายหลัง</button>
 </section>
 
 <!-- STEP 3 : SDQ -->
@@ -203,6 +204,7 @@ footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:26px}
   <div class="alert err" id="err3"></div>
   <div class="counter"><span id="count">ตอบแล้ว 0 / 25 ข้อ</span></div>
   <button class="btn-main" id="btnSdq" onclick="submitSDQ()">ส่งแบบประเมิน</button>
+  <button class="btn-ghost" onclick="showPartial('บันทึกข้อมูลส่วนตัวไว้แล้วนะ 💚','แบบประเมิน SDQ ยังไม่ได้ส่ง (คำตอบที่ตอบไว้จะไม่ถูกเก็บ) กลับมาทำต่อได้ทุกเมื่อโดยเข้าระบบใหม่ด้วยเลขประจำตัวและวันเกิด')">ยังไม่พร้อม ทำภายหลัง</button>
 </section>
 
 <!-- STEP 4 : EQ -->
@@ -213,6 +215,16 @@ footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:26px}
   <div class="alert err" id="err4"></div>
   <div class="counter"><span id="eqCount">ตอบแล้ว 0 / 52 ข้อ</span></div>
   <button class="btn-main" id="btnEq" onclick="submitEQ()">ส่งแบบประเมิน EQ</button>
+  <button class="btn-ghost" onclick="showPartial('บันทึกข้อมูลไว้แล้วนะ 💚','แบบประเมิน EQ ยังไม่ได้ส่ง (คำตอบที่ตอบไว้จะไม่ถูกเก็บ) กลับมาทำต่อได้ทุกเมื่อโดยเข้าระบบใหม่ด้วยเลขประจำตัวและวันเกิด')">ยังไม่พร้อม ทำภายหลัง</button>
+</section>
+
+<!-- PARTIAL DONE (ทำภายหลัง) -->
+<section class="card hidden" id="stepPartial">
+  <div class="done">
+    <div class="big">💾</div>
+    <h2 id="partialTitle">บันทึกเรียบร้อยแล้ว</h2>
+    <p id="partialDesc">ส่วนที่เหลือกลับมาทำต่อเมื่อไหร่ก็ได้ค่ะ ระบบจำข้อมูลที่ทำไปแล้วให้อัตโนมัติ</p>
+  </div>
 </section>
 
 <!-- DONE -->
@@ -296,11 +308,17 @@ async function api(payload){
   return res.json();
 }
 function show(step){
-  ['step1','step2','step3','step4','stepDone'].forEach(s=>document.getElementById(s).classList.add('hidden'));
+  ['step1','step2','step3','step4','stepPartial','stepDone'].forEach(s=>document.getElementById(s).classList.add('hidden'));
   document.getElementById(step).classList.remove('hidden');
-  const map={step1:1,step2:2,step3:3,step4:4,stepDone:4};
+  const map={step1:1,step2:2,step3:3,step4:4,stepPartial:4,stepDone:4};
   for(let i=1;i<=4;i++) document.getElementById('p'+i).classList.toggle('on', i<=map[step]);
   window.scrollTo({top:0,behavior:'smooth'});
+}
+function showPartial(title,desc){
+  document.getElementById('partialTitle').textContent=title;
+  document.getElementById('partialDesc').textContent=desc;
+  document.querySelectorAll('#stepPartial .extra-btn').forEach(b=>b.remove());
+  show('stepPartial');
 }
 function err(id,msg){ const el=document.getElementById(id); el.textContent=msg||''; el.className = msg?'alert err':'alert'; }
 
@@ -327,8 +345,10 @@ async function verify(){
       document.querySelector('#stepDone p').innerHTML='ปีการศึกษานี้เราส่งข้อมูลและแบบประเมินครบทุกอย่างแล้ว 🎉<br>หากต้องการแก้ไข ติดต่อครูแนะแนวได้เลยนะ';
       return;
     }
-    if(r.sdqDone && !r.eqDone){ gotoEQ(); return; } // เหลือแค่ EQ → ข้ามไปทำต่อได้เลย
-    show('step2');
+    // พาไปขั้นที่ยังไม่เสร็จโดยตรง ข้ามขั้นที่ทำแล้ว
+    if(!r.hasCurrentYear){ show('step2'); return; }
+    if(!r.sdqDone){ show('step3'); return; }
+    gotoEQ();
   }catch(e){ err('err1','เชื่อมต่อระบบไม่ได้ ลองใหม่อีกครั้ง หรือแจ้งครูแนะแนว'); }
   finally{ btn.disabled=false; btn.textContent='เข้าสู่ระบบ'; }
 }
@@ -341,10 +361,12 @@ function prefill(y){
 }
 
 /* ---------- step 2 ---------- */
-async function saveYearly(){
+async function saveYearly(later){
   const req=['f_level','f_room','f_gname','f_gphone'];
   for(const id of req){ if(!document.getElementById(id).value){ err('err2','กรอกอย่างน้อย ระดับชั้น ห้อง ชื่อและเบอร์ผู้ปกครอง'); return; } }
-  const btn=document.getElementById('btnSave'); btn.disabled=true; btn.textContent='กำลังบันทึก...';
+  const btn=later?document.querySelector('#step2 .btn-ghost'):document.getElementById('btnSave');
+  const originalText=btn.textContent;
+  btn.disabled=true; btn.textContent='กำลังบันทึก...';
   err('err2','');
   const data={
     'ระดับชั้น':v('f_level'),'ห้อง':v('f_room'),'เลขที่':v('f_no'),'เบอร์นักเรียน':v('f_phone'),
@@ -356,9 +378,13 @@ async function saveYearly(){
   try{
     const r=await api({action:'saveYearly',...session,data});
     if(!r.ok){ err('err2',r.message); return; }
-    show('step3');
+    if(later){
+      showPartial('บันทึกข้อมูลส่วนตัวแล้ว 💚','เหลือแบบประเมิน SDQ และ EQ กลับมาทำต่อได้ทุกเมื่อ โดยกรอกเลขประจำตัวและวันเกิดเข้าระบบใหม่อีกครั้ง');
+    } else {
+      show('step3');
+    }
   }catch(e){ err('err2','เชื่อมต่อระบบไม่ได้ ลองใหม่อีกครั้งนะ'); }
-  finally{ btn.disabled=false; btn.textContent='บันทึกและทำแบบประเมินต่อ'; }
+  finally{ btn.disabled=false; btn.textContent=originalText; }
 }
 function v(id){ return document.getElementById(id).value.trim(); }
 
@@ -388,7 +414,9 @@ async function submitSDQ(){
   try{
     const r=await api({action:'submitSDQ',...session,answers:a});
     if(!r.ok){ err('err3',r.message); return; }
-    gotoEQ();
+    showPartial('ส่ง SDQ เรียบร้อยแล้ว 🎉','เหลือแบบประเมิน EQ อีกส่วนเดียว จะทำต่อตอนนี้หรือกลับมาทำทีหลังก็ได้ค่ะ');
+    document.getElementById('partialDesc').insertAdjacentHTML('afterend',
+      '<button class="btn-main extra-btn" style="max-width:280px;margin:16px auto 0" onclick="gotoEQ()">ทำแบบประเมิน EQ ต่อเลย</button>');
   }catch(e){ err('err3','เชื่อมต่อระบบไม่ได้ ลองกดส่งอีกครั้งนะ'); }
   finally{ btn.disabled=false; btn.textContent='ส่งแบบประเมิน'; }
 }

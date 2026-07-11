@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบดูแลช่วยเหลือนักเรียน — สำหรับครู</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F7F8F3; --grid:rgba(38,74,112,.09);
+  --ink:#1E3A5F; --ink-soft:#54718F; --line:#C7D3DE; --card:#FFF;
+  --accent:#2E8B74; --accent-soft:#E3F1EC;
+  --ok:#3E9B6E; --warn:#DBA02E; --risk:#D65A4A; --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Anuphan',sans-serif;color:var(--ink);line-height:1.6;font-size:15px;
+  background:linear-gradient(var(--grid) 1px,transparent 1px),
+             linear-gradient(90deg,var(--grid) 1px,transparent 1px),var(--paper);
+  background-size:28px 28px,28px 28px,auto;min-height:100vh;
+}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 16px 70px}
+h1,h2{font-family:'Mitr',sans-serif;font-weight:600}
+.eyebrow{display:inline-block;font-size:11px;letter-spacing:.16em;font-weight:700;color:var(--accent);
+  border:1.5px solid var(--accent);border-radius:999px;padding:2px 12px;background:var(--accent-soft);margin-bottom:8px}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:22px 20px;margin-bottom:16px}
+label{display:block;font-size:14px;font-weight:600;margin:12px 0 5px}
+input,select{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;font-family:'Anuphan';font-size:16px;background:#FDFDFC;color:var(--ink)}
+input:focus,select:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+button{font-family:'Mitr';font-weight:500;font-size:16px;cursor:pointer;border:none;border-radius:11px;padding:12px 20px}
+.btn-main{background:var(--accent);color:#fff;width:100%;margin-top:18px}
+.btn-main:disabled{background:#B9CFC9}
+.btn-sm{background:#EDF1F5;color:var(--ink);font-size:13.5px;padding:8px 14px}
+.alert{border-radius:10px;padding:11px 14px;font-size:14px;margin-top:12px;display:none}
+.alert.err{display:block;background:#FBE3DF;color:#8C3325;border:1.5px solid #EFB9AF}
+.login-box{max-width:420px;margin:60px auto 0}
+.hidden{display:none}
+
+.topbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:16px}
+.topbar .who{font-size:14px;color:var(--ink-soft)}
+.topbar .who b{color:var(--ink)}
+.spacer{flex:1}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px}
+.stat{background:var(--card);border:1.5px solid var(--line);border-radius:12px;padding:12px 14px}
+.stat .n{font-family:'Mitr';font-size:24px;font-weight:600}
+.stat .l{font-size:12.5px;color:var(--ink-soft)}
+.stat.s-ok .n{color:var(--ok)} .stat.s-warn .n{color:var(--warn)} .stat.s-risk .n{color:var(--risk)}
+
+.tools{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:center}
+.tools select,.tools input{width:auto;min-width:150px;padding:8px 11px;font-size:14px}
+.tablewrap{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);overflow:auto}
+table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:760px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid #E8EDF2;white-space:nowrap}
+th{background:#EFF3F0;font-weight:700;position:sticky;top:0}
+tr:hover td{background:#FAFBF8}
+.pill{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:1px 10px}
+.p-ok{background:#E2F2E9;color:var(--ok)} .p-warn{background:#FBF0D8;color:#8A6A14}
+.p-risk{background:#FBE3DF;color:var(--risk)} .p-none{background:#EDF1F5;color:var(--ink-soft)}
+.sub{font-size:11.5px;color:var(--ink-soft)}
+footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:24px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- LOGIN -->
+<div class="login-box" id="loginView">
+  <div class="card">
+    <span class="eyebrow">ระบบดูแลช่วยเหลือนักเรียน</span>
+    <h1 style="font-size:24px">เข้าสู่ระบบสำหรับครู</h1>
+    <label>ชื่อผู้ใช้</label>
+    <input id="username" autocomplete="username">
+    <label>รหัสผ่าน</label>
+    <input id="password" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')login()">
+    <div class="alert err" id="loginErr"></div>
+    <button class="btn-main" id="btnLogin" onclick="login()">เข้าสู่ระบบ</button>
+    <p style="font-size:12.5px;color:var(--ink-soft);margin-top:12px">🔒 ระบบจะออกจากระบบอัตโนมัติเมื่อไม่ใช้งานเกิน 6 ชั่วโมง</p>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashView" class="hidden">
+  <div class="topbar">
+    <div>
+      <span class="eyebrow" id="schoolName">ระบบดูแลช่วยเหลือนักเรียน</span>
+      <h1 style="font-size:22px">ผลคัดกรองนักเรียน <span id="yearLabel" style="color:var(--accent)"></span></h1>
+      <div class="who" id="whoami"></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="btn-sm" onclick="loadStudents()">🔄 รีเฟรช</button>
+    <button class="btn-sm" onclick="logout()">ออกจากระบบ</button>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="tools">
+    <select id="fRoom" onchange="render()"><option value="">ทุกห้อง</option></select>
+    <select id="fResult" onchange="render()">
+      <option value="">ผล SDQ ทั้งหมด</option>
+      <option value="มีปัญหา">เฉพาะ มีปัญหา</option>
+      <option value="เสี่ยง">เฉพาะ เสี่ยง</option>
+      <option value="ปกติ">เฉพาะ ปกติ</option>
+      <option value="ยังไม่ทำ">ยังไม่ทำแบบประเมิน</option>
+    </select>
+    <input id="fSearch" placeholder="ค้นหาชื่อ / เลขประจำตัว" oninput="render()">
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr>
+        <th>ห้อง</th><th>เลขที่</th><th>เลขประจำตัว</th><th>ชื่อ-สกุล</th>
+        <th>SDQ รวม</th><th>ด้านที่ต้องดูแล (SDQ)</th><th>EQ</th>
+      </tr></thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+  <div class="alert err" id="dashErr"></div>
+</div>
+
+<footer>ระบบดูแลช่วยเหลือนักเรียน · งานแนะแนว · ข้อมูลนี้เป็นความลับ ใช้เพื่อการดูแลนักเรียนเท่านั้น</footer>
+</div>
+
+<script>
+/* ⚙️ วาง URL ของ Apps Script Web App (ตัวเดียวกับหน้านักเรียน) */
+const API_URL = 'https://script.google.com/macros/s/AKfycbzKNAzZkHHoW88i51xcfTpSgJ5rq2LOhIwAFmddldH-accgPsD1wLhFLAZfV0Fzi4zoOQ/exec';
+
+let TOKEN = sessionStorage.getItem('careToken') || '';
+let DATA = [];
+
+async function api(payload){
+  const res = await fetch(API_URL,{method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload)});
+  return res.json();
+}
+
+/* ---------- login ---------- */
+async function login(){
+  const u=document.getElementById('username').value.trim();
+  const p=document.getElementById('password').value;
+  if(!u||!p){ showErr('loginErr','กรอกชื่อผู้ใช้และรหัสผ่านก่อนนะคะ'); return; }
+  const btn=document.getElementById('btnLogin'); btn.disabled=true; btn.textContent='กำลังตรวจสอบ...';
+  try{
+    const r=await api({action:'teacherLogin',username:u,password:p});
+    if(!r.ok){ showErr('loginErr',r.message); return; }
+    TOKEN=r.token; sessionStorage.setItem('careToken',TOKEN);
+    showErr('loginErr','');
+    openDash();
+  }catch(e){ showErr('loginErr','เชื่อมต่อระบบไม่ได้'); }
+  finally{ btn.disabled=false; btn.textContent='เข้าสู่ระบบ'; }
+}
+function logout(){
+  sessionStorage.removeItem('careToken'); TOKEN='';
+  document.getElementById('dashView').classList.add('hidden');
+  document.getElementById('loginView').classList.remove('hidden');
+}
+function showErr(id,msg){ const el=document.getElementById(id); el.textContent=msg||''; el.className=msg?'alert err':'alert'; }
+
+/* ---------- dashboard ---------- */
+function openDash(){
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('dashView').classList.remove('hidden');
+  loadStudents();
+}
+async function loadStudents(){
+  showErr('dashErr','');
+  document.getElementById('tbody').innerHTML='<tr><td colspan="7">กำลังโหลด...</td></tr>';
+  try{
+    const r=await api({action:'listStudents',token:TOKEN});
+    if(!r.ok){
+      if(r.expired){ logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
+      showErr('dashErr',r.message); return;
+    }
+    DATA=r.rows;
+    document.getElementById('yearLabel').textContent='ปีการศึกษา '+r.year;
+    document.getElementById('schoolName').textContent=r.schoolName;
+    document.getElementById('whoami').innerHTML=
+      `เข้าใช้โดย <b>${r.teacher.name}</b> · ${r.teacher.role==='admin'?'เห็นข้อมูลทุกห้อง':'ดูแล '+r.teacher.rooms}`;
+    const rooms=[...new Set(DATA.map(x=>x.room).filter(x=>x!=='—'))].sort();
+    document.getElementById('fRoom').innerHTML='<option value="">ทุกห้อง</option>'+rooms.map(x=>`<option>${x}</option>`).join('');
+    render();
+  }catch(e){ showErr('dashErr','เชื่อมต่อระบบไม่ได้'); }
+}
+
+function pill(label){
+  if(!label) return '<span class="pill p-none">ยังไม่ทำ</span>';
+  const c=label==='ปกติ'?'p-ok':label==='เสี่ยง'?'p-warn':'p-risk';
+  return `<span class="pill ${c}">${label}</span>`;
+}
+function problemAreas(s){
+  if(!s) return '<span class="sub">—</span>';
+  const map={em:'อารมณ์',co:'ความประพฤติ',hy:'ไม่อยู่นิ่ง',pe:'เพื่อน'};
+  const bad=Object.keys(map).filter(k=>s[k]==='เสี่ยง'||s[k]==='มีปัญหา')
+    .map(k=>`${map[k]} (${s[k]})`);
+  return bad.length?bad.join(', '):'<span class="sub">ไม่มี</span>';
+}
+
+function render(){
+  const room=document.getElementById('fRoom').value;
+  const res=document.getElementById('fResult').value;
+  const q=document.getElementById('fSearch').value.trim();
+  const rows=DATA.filter(x=>{
+    if(room && x.room!==room) return false;
+    if(res==='ยังไม่ทำ'){ if(x.sdq) return false; }
+    else if(res){ if(!x.sdq || x.sdq.total!==res) return false; }
+    if(q && !(x.name.includes(q)||x.id.includes(q))) return false;
+    return true;
+  });
+
+  // สรุปตัวเลข (จากข้อมูลตามสิทธิ์ทั้งหมด ไม่ใช่ตามฟิลเตอร์)
+  const done=DATA.filter(x=>x.sdq).length;
+  const risk=DATA.filter(x=>x.sdq&&x.sdq.total==='เสี่ยง').length;
+  const prob=DATA.filter(x=>x.sdq&&x.sdq.total==='มีปัญหา').length;
+  document.getElementById('stats').innerHTML=`
+    <div class="stat"><div class="n">${DATA.length}</div><div class="l">นักเรียนทั้งหมด</div></div>
+    <div class="stat s-ok"><div class="n">${done}</div><div class="l">ทำแบบประเมินแล้ว</div></div>
+    <div class="stat s-warn"><div class="n">${risk}</div><div class="l">SDQ กลุ่มเสี่ยง</div></div>
+    <div class="stat s-risk"><div class="n">${prob}</div><div class="l">SDQ มีปัญหา</div></div>`;
+
+  document.getElementById('tbody').innerHTML = rows.length ? rows.map(x=>`
+    <tr>
+      <td>${x.room}</td><td>${x.no||''}</td><td>${x.id}</td><td>${x.name}</td>
+      <td>${pill(x.sdq&&x.sdq.total)}</td>
+      <td>${problemAreas(x.sdq)}</td>
+      <td>${x.eq?(x.eq==='ปกติทุกด้าน'?'<span class="pill p-ok">ปกติทุกด้าน</span>':`<span class="pill p-warn">${x.eq}</span>`):'<span class="pill p-none">ยังไม่ทำ</span>'}</td>
+    </tr>`).join('') : '<tr><td colspan="7">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';
+}
+
+/* ถ้ามี token ค้างอยู่ ลองเข้าเลย */
+if(TOKEN) openDash();
+</script>
+</body>
+</html>

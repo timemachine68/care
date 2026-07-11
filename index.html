@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบดูแลช่วยเหลือนักเรียน — สำหรับนักเรียน</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=Anuphan:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F7F8F3; --grid:rgba(38,74,112,.09);
+  --ink:#1E3A5F; --ink-soft:#54718F; --line:#C7D3DE; --card:#FFF;
+  --accent:#2E8B74; --accent-soft:#E3F1EC; --hi:#FFF0C2; --risk:#D65A4A;
+  --radius:14px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  font-family:'Anuphan',sans-serif;color:var(--ink);line-height:1.6;font-size:16px;
+  background:linear-gradient(var(--grid) 1px,transparent 1px),
+             linear-gradient(90deg,var(--grid) 1px,transparent 1px),var(--paper);
+  background-size:28px 28px,28px 28px,auto;
+  min-height:100vh;
+}
+.wrap{max-width:640px;margin:0 auto;padding:36px 16px 70px}
+h1,h2,h3{font-family:'Mitr',sans-serif;font-weight:600;line-height:1.35}
+.eyebrow{display:inline-block;font-size:11px;letter-spacing:.16em;font-weight:700;color:var(--accent);
+  border:1.5px solid var(--accent);border-radius:999px;padding:2px 12px;background:var(--accent-soft);margin-bottom:10px}
+header h1{font-size:clamp(22px,5vw,30px)}
+header p{color:var(--ink-soft);font-size:14.5px;margin-top:4px}
+
+.progress{display:flex;gap:8px;margin:22px 0 18px}
+.pstep{flex:1;height:6px;border-radius:99px;background:#E1E8EE}
+.pstep.on{background:var(--accent)}
+
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);padding:24px 20px;margin-bottom:16px}
+.card h2{font-size:19px;margin-bottom:4px}
+.card .desc{font-size:14px;color:var(--ink-soft);margin-bottom:16px}
+
+label{display:block;font-size:14px;font-weight:600;margin:14px 0 5px}
+input,select,textarea{
+  width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:10px;
+  font-family:'Anuphan';font-size:16px;color:var(--ink);background:#FDFDFC;
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+@media(max-width:480px){.row{grid-template-columns:1fr}}
+
+button{
+  font-family:'Mitr';font-weight:500;font-size:17px;cursor:pointer;border:none;border-radius:12px;
+  padding:13px 22px;width:100%;margin-top:20px;transition:transform .08s ease;
+}
+button:active{transform:scale(.98)}
+.btn-main{background:var(--accent);color:#fff}
+.btn-main:disabled{background:#B9CFC9;cursor:wait}
+.btn-ghost{background:#EDF1F5;color:var(--ink);margin-top:10px}
+
+.alert{border-radius:10px;padding:12px 15px;font-size:14.5px;margin-top:14px;display:none}
+.alert.err{display:block;background:#FBE3DF;color:#8C3325;border:1.5px solid #EFB9AF}
+.alert.ok{display:block;background:var(--accent-soft);color:#1C5C4B;border:1.5px solid #BADFD3}
+
+.hello{background:var(--hi);border:1.5px solid #EAD189;border-radius:10px;padding:12px 15px;font-size:15px;margin-bottom:6px}
+
+/* SDQ */
+.q{border-bottom:1.5px dashed #E4EAF0;padding:16px 0}
+.q:last-of-type{border:none}
+.q .qt{font-size:15.5px;font-weight:600;display:flex;gap:9px}
+.q .qn{font-family:'Mitr';color:var(--accent);flex:none}
+.opts{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.opt{position:relative}
+.opt input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.opt span{
+  display:block;text-align:center;font-size:13.5px;padding:9px 4px;border-radius:9px;
+  border:1.5px solid var(--line);background:#FDFDFC;color:var(--ink-soft);user-select:none;
+}
+.opt input:checked + span{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+.opt input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+.q.missing .qt{color:var(--risk)}
+
+.counter{position:sticky;bottom:12px;text-align:center;margin-top:6px}
+.counter span{
+  display:inline-block;background:var(--ink);color:#fff;font-size:13.5px;font-weight:600;
+  border-radius:999px;padding:6px 18px;box-shadow:0 6px 16px rgba(30,58,95,.3)
+}
+.done{text-align:center;padding:44px 20px}
+.done .big{font-size:52px;margin-bottom:8px}
+.done h2{font-size:22px}
+.done p{color:var(--ink-soft);font-size:15px;margin-top:6px}
+.pdpa{font-size:12.5px;color:var(--ink-soft);background:rgba(255,255,255,.7);border:1.5px dashed var(--line);
+  border-radius:10px;padding:10px 14px;margin-top:14px}
+.hidden{display:none}
+footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:26px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <span class="eyebrow">ระบบดูแลช่วยเหลือนักเรียน</span>
+  <h1 id="schoolName">แบบข้อมูลนักเรียนรายบุคคล + แบบประเมิน SDQ</h1>
+  <p>ใช้เวลาประมาณ 10 นาที ทำบนมือถือได้เลย</p>
+</header>
+
+<div class="progress">
+  <div class="pstep on" id="p1"></div>
+  <div class="pstep" id="p2"></div>
+  <div class="pstep" id="p3"></div>
+  <div class="pstep" id="p4"></div>
+</div>
+
+<!-- STEP 1 : VERIFY -->
+<section class="card" id="step1">
+  <h2>ยืนยันตัวตน</h2>
+  <p class="desc">กรอกเลขประจำตัวนักเรียนและวันเกิด เพื่อเข้าสู่แบบฟอร์มของตัวเอง</p>
+  <label for="sid">เลขประจำตัวนักเรียน</label>
+  <input id="sid" inputmode="numeric" autocomplete="off" placeholder="เช่น 12345">
+  <label>วันเดือนปีเกิด (พ.ศ.)</label>
+  <div class="row3">
+    <select id="bd"><option value="">วันที่</option></select>
+    <select id="bm"><option value="">เดือน</option></select>
+    <select id="by"><option value="">ปี พ.ศ.</option></select>
+  </div>
+  <div class="alert err" id="err1"></div>
+  <button class="btn-main" id="btnVerify" onclick="verify()">เข้าสู่ระบบ</button>
+  <div class="pdpa">🔒 ข้อมูลนี้เก็บเพื่อการดูแลช่วยเหลือนักเรียนตามระบบของโรงเรียนเท่านั้น เข้าถึงได้เฉพาะครูผู้เกี่ยวข้อง</div>
+</section>
+
+<!-- STEP 2 : YEARLY INFO -->
+<section class="card hidden" id="step2">
+  <div class="hello" id="hello"></div>
+  <h2>ข้อมูลนักเรียนรายบุคคล</h2>
+  <p class="desc" id="prefillNote">กรอกข้อมูลของปีการศึกษานี้ให้ครบถ้วน</p>
+
+  <div class="row">
+    <div><label>ระดับชั้น</label>
+      <select id="f_level">
+        <option value="">เลือก</option>
+        <option>ม.1</option><option>ม.2</option><option>ม.3</option>
+        <option>ม.4</option><option>ม.5</option><option>ม.6</option>
+      </select>
+    </div>
+    <div><label>ห้อง</label><input id="f_room" inputmode="numeric" placeholder="เช่น 5"></div>
+  </div>
+  <div class="row">
+    <div><label>เลขที่</label><input id="f_no" inputmode="numeric"></div>
+    <div><label>เบอร์โทรนักเรียน</label><input id="f_phone" inputmode="tel"></div>
+  </div>
+  <label>ที่อยู่ปัจจุบัน</label>
+  <textarea id="f_addr" rows="2"></textarea>
+  <div class="row">
+    <div><label>ชื่อผู้ปกครองที่ติดต่อได้</label><input id="f_gname"></div>
+    <div><label>ความสัมพันธ์</label>
+      <select id="f_grel"><option value="">เลือก</option>
+        <option>บิดา</option><option>มารดา</option><option>ปู่/ย่า/ตา/ยาย</option>
+        <option>ลุง/ป้า/น้า/อา</option><option>พี่</option><option>อื่นๆ</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div><label>เบอร์โทรผู้ปกครอง</label><input id="f_gphone" inputmode="tel"></div>
+    <div><label>อาชีพผู้ปกครอง</label><input id="f_gjob"></div>
+  </div>
+  <div class="row">
+    <div><label>รายได้ครอบครัวต่อเดือน</label>
+      <select id="f_income"><option value="">เลือก</option>
+        <option>ต่ำกว่า 10,000 บาท</option><option>10,000–20,000 บาท</option>
+        <option>20,001–30,000 บาท</option><option>มากกว่า 30,000 บาท</option>
+      </select>
+    </div>
+    <div><label>สถานภาพครอบครัว</label>
+      <select id="f_fam"><option value="">เลือก</option>
+        <option>บิดามารดาอยู่ด้วยกัน</option><option>บิดามารดาแยกกันอยู่</option>
+        <option>บิดามารดาหย่าร้าง</option><option>บิดาหรือมารดาเสียชีวิต</option><option>อื่นๆ</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div><label>ปัจจุบันอาศัยอยู่กับ</label>
+      <select id="f_live"><option value="">เลือก</option>
+        <option>บิดาและมารดา</option><option>บิดา</option><option>มารดา</option>
+        <option>ญาติ</option><option>หอพัก/อยู่ลำพัง</option><option>อื่นๆ</option>
+      </select>
+    </div>
+    <div><label>การเดินทางมาโรงเรียน</label>
+      <select id="f_travel"><option value="">เลือก</option>
+        <option>เดิน</option><option>จักรยาน/มอเตอร์ไซค์</option><option>รถผู้ปกครอง</option>
+        <option>รถโดยสาร/รถรับส่ง</option><option>อื่นๆ</option>
+      </select>
+    </div>
+  </div>
+  <label>โรคประจำตัว (ถ้าไม่มีให้ใส่ "-")</label>
+  <input id="f_disease" placeholder="-">
+  <div class="alert err" id="err2"></div>
+  <button class="btn-main" id="btnSave" onclick="saveYearly()">บันทึกและทำแบบประเมินต่อ</button>
+</section>
+
+<!-- STEP 3 : SDQ -->
+<section class="card hidden" id="step3">
+  <h2>แบบประเมินพฤติกรรมตนเอง (SDQ)</h2>
+  <p class="desc">อ่านแต่ละข้อแล้วเลือกคำตอบที่ตรงกับตัวเอง <b>ในช่วง 6 เดือนที่ผ่านมา</b> ไม่มีคำตอบถูกหรือผิด ตอบตามความจริงได้เลยนะ 😊</p>
+  <div id="sdqList"></div>
+  <div class="alert err" id="err3"></div>
+  <div class="counter"><span id="count">ตอบแล้ว 0 / 25 ข้อ</span></div>
+  <button class="btn-main" id="btnSdq" onclick="submitSDQ()">ส่งแบบประเมิน</button>
+</section>
+
+<!-- STEP 4 : EQ -->
+<section class="card hidden" id="step4">
+  <h2>แบบประเมินความฉลาดทางอารมณ์ (EQ)</h2>
+  <p class="desc">อ่านแต่ละข้อแล้วเลือกคำตอบที่ตรงกับตัวเองมากที่สุด ตอบตามความจริงเช่นเดิมนะ 💚</p>
+  <div id="eqList"></div>
+  <div class="alert err" id="err4"></div>
+  <div class="counter"><span id="eqCount">ตอบแล้ว 0 / 52 ข้อ</span></div>
+  <button class="btn-main" id="btnEq" onclick="submitEQ()">ส่งแบบประเมิน EQ</button>
+</section>
+
+<!-- DONE -->
+<section class="card hidden" id="stepDone">
+  <div class="done">
+    <div class="big">🌈</div>
+    <h2>ส่งข้อมูลเรียบร้อยแล้ว</h2>
+    <p>ขอบคุณที่ตอบตามความจริงนะคะ ข้อมูลของเราจะช่วยให้ครูดูแลทุกคนได้ดีขึ้น<br>หากมีเรื่องอยากปรึกษา เข้ามาคุยกับครูแนะแนวได้เสมอเลย 💚</p>
+  </div>
+</section>
+
+<footer>ระบบดูแลช่วยเหลือนักเรียน · งานแนะแนว</footer>
+</div>
+
+<script>
+/* ============================================================
+   ⚙️ ตั้งค่าที่เดียวจบ: วาง URL ของ Apps Script Web App ตรงนี้
+   ============================================================ */
+const API_URL = 'https://script.google.com/macros/s/AKfycbzKNAzZkHHoW88i51xcfTpSgJ5rq2LOhIwAFmddldH-accgPsD1wLhFLAZfV0Fzi4zoOQ/exec';
+
+/* แบบประเมิน SDQ ฉบับนักเรียนประเมินตนเอง 25 ข้อ
+   ⚠️ กรุณาตรวจทานถ้อยคำให้ตรงกับแบบฟอร์มทางการของกรมสุขภาพจิตก่อนใช้จริง */
+const SDQ_ITEMS = [
+'ฉันพยายามทำตัวดีต่อผู้อื่น และใส่ใจความรู้สึกของเขา',
+'ฉันอยู่ไม่นิ่ง ไม่สามารถนั่งนิ่งๆ ได้นาน',
+'ฉันปวดศีรษะ ปวดท้อง หรือไม่สบายบ่อยๆ',
+'ฉันเต็มใจแบ่งปันสิ่งของให้ผู้อื่น เช่น ขนม อุปกรณ์การเรียน',
+'ฉันโกรธแรง และมักอารมณ์เสีย',
+'ฉันมักชอบอยู่กับตัวเอง เล่นหรือทำอะไรคนเดียว',
+'ฉันมักทำตามที่ผู้ใหญ่บอกหรือขอให้ทำ',
+'ฉันเป็นคนกังวลใจในหลายๆ เรื่อง',
+'ฉันพร้อมช่วยเหลือหากมีใครบาดเจ็บ ไม่สบายใจ หรือเสียใจ',
+'ฉันอยู่ไม่สุข กระวนกระวาย',
+'ฉันมีเพื่อนสนิทอย่างน้อยหนึ่งคน',
+'ฉันมักมีเรื่องทะเลาะวิวาท หรือทำให้ผู้อื่นทำตามที่ฉันต้องการได้',
+'ฉันรู้สึกไม่มีความสุข เศร้า หรือร้องไห้บ่อยๆ',
+'เพื่อนๆ ส่วนใหญ่ชอบฉัน',
+'ฉันวอกแวกง่าย รู้สึกว่าตั้งสมาธิได้ยาก',
+'ฉันรู้สึกประหม่าเมื่ออยู่ในสถานการณ์ใหม่ๆ และขาดความมั่นใจ',
+'ฉันใจดีต่อเด็กที่เล็กกว่า',
+'ฉันมักถูกกล่าวหาว่าพูดโกหกหรือขี้โกง',
+'เพื่อนๆ ชอบล้อเลียนหรือรังแกฉัน',
+'ฉันมักอาสาช่วยเหลือผู้อื่น เช่น พ่อแม่ ครู หรือเพื่อน',
+'ฉันคิดก่อนทำ',
+'ฉันเคยเอาของของคนอื่นที่บ้าน โรงเรียน หรือที่อื่นๆ',
+'ฉันเข้ากับผู้ใหญ่ได้ดีกว่าเด็กวัยเดียวกัน',
+'ฉันกลัวหลายสิ่งหลายอย่าง และตกใจง่าย',
+'ฉันทำงานที่ได้รับมอบหมายจนสำเร็จ มีความตั้งใจในการทำงาน'
+];
+
+let session = { studentId:'', birthdate:'' };
+
+/* ---------- init ---------- */
+const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+(function init(){
+  const bd=document.getElementById('bd'), bm=document.getElementById('bm'), by=document.getElementById('by');
+  for(let i=1;i<=31;i++) bd.add(new Option(i,i));
+  months.forEach((m,i)=>bm.add(new Option(m,i+1)));
+  const thisYearBE = new Date().getFullYear()+543;
+  for(let y=thisYearBE-10; y>=thisYearBE-22; y--) by.add(new Option(y,y));
+
+  const list=document.getElementById('sdqList');
+  SDQ_ITEMS.forEach((t,i)=>{
+    const q=document.createElement('div'); q.className='q'; q.id='q'+i;
+    q.innerHTML = `<div class="qt"><span class="qn">${i+1}.</span><span>${t}</span></div>
+      <div class="opts">
+        ${[['0','ไม่จริง'],['1','ค่อนข้างจริง'],['2','จริง']].map(([v,l])=>`
+        <label class="opt"><input type="radio" name="sdq${i}" value="${v}" onchange="updateCount()"><span>${l}</span></label>`).join('')}
+      </div>`;
+    list.appendChild(q);
+  });
+})();
+
+/* ---------- helpers ---------- */
+async function api(payload){
+  const res = await fetch(API_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},  // เลี่ยง CORS preflight
+    body: JSON.stringify(payload)
+  });
+  return res.json();
+}
+function show(step){
+  ['step1','step2','step3','step4','stepDone'].forEach(s=>document.getElementById(s).classList.add('hidden'));
+  document.getElementById(step).classList.remove('hidden');
+  const map={step1:1,step2:2,step3:3,step4:4,stepDone:4};
+  for(let i=1;i<=4;i++) document.getElementById('p'+i).classList.toggle('on', i<=map[step]);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function err(id,msg){ const el=document.getElementById(id); el.textContent=msg||''; el.className = msg?'alert err':'alert'; }
+
+/* ---------- step 1 ---------- */
+async function verify(){
+  const sid=document.getElementById('sid').value.trim();
+  const d=document.getElementById('bd').value, m=document.getElementById('bm').value, y=document.getElementById('by').value;
+  if(!sid||!d||!m||!y){ err('err1','กรอกเลขประจำตัวและวันเกิดให้ครบก่อนนะ'); return; }
+  const btn=document.getElementById('btnVerify'); btn.disabled=true; btn.textContent='กำลังตรวจสอบ...';
+  err('err1','');
+  try{
+    session={ studentId:sid, birthdate:`${('0'+d).slice(-2)}/${('0'+m).slice(-2)}/${y}` };
+    const r=await api({action:'verifyStudent',...session});
+    if(!r.ok){ err('err1',r.message); return; }
+    document.getElementById('schoolName').textContent = 'แบบข้อมูลนักเรียน · ' + (r.schoolName||'');
+    document.getElementById('hello').textContent =
+      `สวัสดี ${r.student.prefix}${r.student.firstName} ${r.student.lastName} · ปีการศึกษา ${r.academicYear}`;
+    if(r.yearly){
+      document.getElementById('prefillNote').textContent='ระบบดึงข้อมูลเดิมมาให้แล้ว ตรวจสอบและแก้ไขส่วนที่เปลี่ยนได้เลย';
+      prefill(r.yearly);
+    }
+    if(r.sdqDone && r.eqDone){
+      show('stepDone');
+      document.querySelector('#stepDone p').innerHTML='ปีการศึกษานี้เราส่งข้อมูลและแบบประเมินครบทุกอย่างแล้ว 🎉<br>หากต้องการแก้ไข ติดต่อครูแนะแนวได้เลยนะ';
+      return;
+    }
+    if(r.sdqDone && !r.eqDone){ gotoEQ(); return; } // เหลือแค่ EQ → ข้ามไปทำต่อได้เลย
+    show('step2');
+  }catch(e){ err('err1','เชื่อมต่อระบบไม่ได้ ลองใหม่อีกครั้ง หรือแจ้งครูแนะแนว'); }
+  finally{ btn.disabled=false; btn.textContent='เข้าสู่ระบบ'; }
+}
+function prefill(y){
+  const map={f_level:'ระดับชั้น',f_room:'ห้อง',f_no:'เลขที่',f_phone:'เบอร์นักเรียน',f_addr:'ที่อยู่ปัจจุบัน',
+    f_gname:'ชื่อผู้ปกครอง',f_grel:'ความสัมพันธ์',f_gphone:'เบอร์ผู้ปกครอง',f_gjob:'อาชีพผู้ปกครอง',
+    f_income:'รายได้ครอบครัว/เดือน',f_fam:'สถานภาพครอบครัว',f_live:'อาศัยอยู่กับ',
+    f_travel:'การเดินทางมาโรงเรียน',f_disease:'โรคประจำตัว'};
+  for(const id in map){ if(y[map[id]]!==undefined && y[map[id]]!=='') document.getElementById(id).value=y[map[id]]; }
+}
+
+/* ---------- step 2 ---------- */
+async function saveYearly(){
+  const req=['f_level','f_room','f_gname','f_gphone'];
+  for(const id of req){ if(!document.getElementById(id).value){ err('err2','กรอกอย่างน้อย ระดับชั้น ห้อง ชื่อและเบอร์ผู้ปกครอง'); return; } }
+  const btn=document.getElementById('btnSave'); btn.disabled=true; btn.textContent='กำลังบันทึก...';
+  err('err2','');
+  const data={
+    'ระดับชั้น':v('f_level'),'ห้อง':v('f_room'),'เลขที่':v('f_no'),'เบอร์นักเรียน':v('f_phone'),
+    'ที่อยู่ปัจจุบัน':v('f_addr'),'ชื่อผู้ปกครอง':v('f_gname'),'ความสัมพันธ์':v('f_grel'),
+    'เบอร์ผู้ปกครอง':v('f_gphone'),'อาชีพผู้ปกครอง':v('f_gjob'),'รายได้ครอบครัว/เดือน':v('f_income'),
+    'สถานภาพครอบครัว':v('f_fam'),'อาศัยอยู่กับ':v('f_live'),'การเดินทางมาโรงเรียน':v('f_travel'),
+    'โรคประจำตัว':v('f_disease')||'-'
+  };
+  try{
+    const r=await api({action:'saveYearly',...session,data});
+    if(!r.ok){ err('err2',r.message); return; }
+    show('step3');
+  }catch(e){ err('err2','เชื่อมต่อระบบไม่ได้ ลองใหม่อีกครั้งนะ'); }
+  finally{ btn.disabled=false; btn.textContent='บันทึกและทำแบบประเมินต่อ'; }
+}
+function v(id){ return document.getElementById(id).value.trim(); }
+
+/* ---------- step 3 ---------- */
+function answers(){
+  return SDQ_ITEMS.map((_,i)=>{
+    const c=document.querySelector(`input[name="sdq${i}"]:checked`);
+    return c?c.value:null;
+  });
+}
+function updateCount(){
+  const a=answers().filter(x=>x!==null).length;
+  document.getElementById('count').textContent=`ตอบแล้ว ${a} / 25 ข้อ`;
+}
+async function submitSDQ(){
+  const a=answers();
+  const missing=a.map((x,i)=>x===null?i:-1).filter(i=>i>=0);
+  document.querySelectorAll('.q').forEach(q=>q.classList.remove('missing'));
+  if(missing.length){
+    missing.forEach(i=>document.getElementById('q'+i).classList.add('missing'));
+    err('err3',`ยังเหลืออีก ${missing.length} ข้อ (ข้อที่ตัวหนังสือเป็นสีแดง)`);
+    document.getElementById('q'+missing[0]).scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  const btn=document.getElementById('btnSdq'); btn.disabled=true; btn.textContent='กำลังส่ง...';
+  err('err3','');
+  try{
+    const r=await api({action:'submitSDQ',...session,answers:a});
+    if(!r.ok){ err('err3',r.message); return; }
+    gotoEQ();
+  }catch(e){ err('err3','เชื่อมต่อระบบไม่ได้ ลองกดส่งอีกครั้งนะ'); }
+  finally{ btn.disabled=false; btn.textContent='ส่งแบบประเมิน'; }
+}
+
+/* ---------- step 4 : EQ ---------- */
+let EQ_TOTAL = 0;
+async function gotoEQ(){
+  show('step4');
+  const list=document.getElementById('eqList');
+  list.innerHTML='<p class="small" style="color:var(--ink-soft)">กำลังโหลดแบบประเมิน...</p>';
+  try{
+    const r=await api({action:'getEQForm'});
+    if(!r.ok){ err('err4',r.message); list.innerHTML=''; return; }
+    if(r.notReady){
+      list.innerHTML='';
+      err('err4','แบบประเมิน EQ ยังตั้งค่าไม่เสร็จ ข้อมูลส่วนอื่นบันทึกแล้ว แจ้งครูแนะแนวได้เลยนะ');
+      document.getElementById('btnEq').style.display='none';
+      return;
+    }
+    EQ_TOTAL = r.items.length;
+    document.getElementById('eqCount').textContent = 'ตอบแล้ว 0 / ' + EQ_TOTAL + ' ข้อ';
+    const OPTS=[['1','ไม่จริง'],['2','จริงบางครั้ง'],['3','ค่อนข้างจริง'],['4','จริงมาก']];
+    list.innerHTML = r.items.map((it,i)=>`
+      <div class="q" id="eq${i}">
+        <div class="qt"><span class="qn">${it.no}.</span><span>${it.text}</span></div>
+        <div class="opts" style="grid-template-columns:1fr 1fr 1fr 1fr">
+          ${OPTS.map(([v,l])=>`<label class="opt"><input type="radio" name="eqq${i}" value="${v}" onchange="updateEqCount()"><span>${l}</span></label>`).join('')}
+        </div>
+      </div>`).join('');
+  }catch(e){ err('err4','โหลดแบบประเมินไม่สำเร็จ ลองรีเฟรชหน้านี้'); }
+}
+function eqAnswers(){
+  const out=[];
+  for(let i=0;i<EQ_TOTAL;i++){
+    const c=document.querySelector(`input[name="eqq${i}"]:checked`);
+    out.push(c?c.value:null);
+  }
+  return out;
+}
+function updateEqCount(){
+  const a=eqAnswers().filter(x=>x!==null).length;
+  document.getElementById('eqCount').textContent=`ตอบแล้ว ${a} / ${EQ_TOTAL} ข้อ`;
+}
+async function submitEQ(){
+  const a=eqAnswers();
+  const missing=a.map((x,i)=>x===null?i:-1).filter(i=>i>=0);
+  document.querySelectorAll('#eqList .q').forEach(q=>q.classList.remove('missing'));
+  if(missing.length){
+    missing.forEach(i=>document.getElementById('eq'+i).classList.add('missing'));
+    err('err4',`ยังเหลืออีก ${missing.length} ข้อ (ข้อที่ตัวหนังสือเป็นสีแดง)`);
+    document.getElementById('eq'+missing[0]).scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  const btn=document.getElementById('btnEq'); btn.disabled=true; btn.textContent='กำลังส่ง...';
+  err('err4','');
+  try{
+    const r=await api({action:'submitEQ',...session,answers:a});
+    if(!r.ok){ err('err4',r.message); return; }
+    show('stepDone');
+  }catch(e){ err('err4','เชื่อมต่อระบบไม่ได้ ลองกดส่งอีกครั้งนะ'); }
+  finally{ btn.disabled=false; btn.textContent='ส่งแบบประเมิน EQ'; }
+}
+</script>
+</body>
+</html>

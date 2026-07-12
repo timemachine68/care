@@ -86,13 +86,14 @@ tbody tr{cursor:pointer}
 
 /* ---------- modal report ---------- */
 .overlay{position:fixed;inset:0;background:rgba(30,58,95,.45);display:flex;align-items:flex-start;justify-content:center;
-  padding:24px 14px;overflow:auto;z-index:50}
+  padding:24px 14px;overflow-y:auto;overflow-x:hidden;z-index:50;box-sizing:border-box}
 .overlay.hidden{display:none}
-.modal{background:#fff;border-radius:16px;max-width:720px;width:100%;padding:26px 24px;position:relative;overflow-wrap:anywhere;word-break:break-word}
+.modal{background:#fff;border-radius:16px;max-width:720px;width:100%;padding:26px 24px;position:relative;overflow-wrap:anywhere;word-break:break-word;box-sizing:border-box;min-width:0}
 .modal .close{position:absolute;top:14px;right:16px;background:#EDF1F5;border:none;border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer}
 .modal h2{font-size:20px;margin-bottom:2px}
 .modal .sub{color:var(--ink-soft);font-size:13.5px;margin-bottom:16px}
 .repgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;font-size:13.5px;margin-bottom:18px}
+.repgrid div{min-width:0;overflow-wrap:anywhere;word-break:break-word}
 .repgrid div b{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:600}
 .modal h4{font-family:'Mitr';font-size:15px;margin:18px 0 8px;border-top:1.5px dashed var(--line);padding-top:14px}
 .trend-table{width:100%;border-collapse:collapse;font-size:13px}
@@ -101,12 +102,12 @@ tbody tr{cursor:pointer}
 .printbtn{margin-top:18px}
 
 /* ---------- screening form ---------- */
-.scr-sec{border-top:1.5px dashed var(--line);padding-top:14px;margin-top:16px}
-.scr-sec h4{font-family:'Mitr';font-size:15px;margin-bottom:8px}
-.scr-group{font-size:12px;font-weight:700;color:var(--ink-soft);margin:8px 0 4px}
-.scr-check{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;padding:4px 0;cursor:pointer}
-.scr-check input{margin-top:3px;flex:none}
-.scr-check span{min-width:0;overflow-wrap:anywhere;word-break:break-word;line-height:1.4}
+.scr-sec{border-top:1.5px dashed var(--line);padding-top:14px;margin-top:16px;min-width:0}
+.scr-sec h4{font-family:'Mitr';font-size:15px;margin-bottom:8px;overflow-wrap:anywhere;word-break:break-word}
+.scr-group{font-size:12px;font-weight:700;color:var(--ink-soft);margin:8px 0 4px;overflow-wrap:anywhere;word-break:break-word}
+.scr-check{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;padding:4px 0;cursor:pointer;width:100%;box-sizing:border-box}
+.scr-check input{margin-top:3px;flex:0 0 auto}
+.scr-check span{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;word-break:break-word;line-height:1.4}
 .scr-comment{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px;margin-top:6px;resize:vertical;min-height:50px}
 .scr-trend{display:flex;gap:8px;margin-top:8px}
 .scr-trend label{flex:1;text-align:center;border:1.5px solid var(--line);border-radius:8px;padding:7px;font-size:13px;cursor:pointer;position:relative}
@@ -130,6 +131,15 @@ tbody tr{cursor:pointer}
   #printArea{position:absolute;top:0;left:0;width:100%;padding:20px}
   .overlay{position:static;background:none;padding:0}
   .modal .close, .printbtn{display:none}
+}
+
+/* ---------- responsive (จอมือถือ) ---------- */
+@media (max-width:640px){
+  .modal{padding:18px 16px;border-radius:12px;max-width:100%}
+  .repgrid, .scr-basic{grid-template-columns:1fr}
+  .scr-trend{flex-direction:column}
+  .charts{grid-template-columns:1fr}
+  table.trend-table{display:block;overflow-x:auto}
 }
 </style>
 </head>
@@ -634,12 +644,12 @@ function renderScreeningForm(studentId, semester, data){
 
 // วาดรายการ checkbox โดยรองรับทั้งข้อความล้วนและกลุ่มย่อย (เช่น 9.1 สารเสพติดที่แบ่งเป็นกลุ่ม)
 function renderCheckList(flatItems, kind, checkedArr){
-  let html = '', lastGroup = undefined;
+  let html = '', lastGroup = null;
   flatItems.forEach((item,i)=>{
-    if(item.group !== lastGroup){
+    if(item.group && item.group !== lastGroup){
       html += `<div class="scr-group" style="color:var(--ink);font-weight:600;margin-top:8px">${item.group}</div>`;
-      lastGroup = item.group;
     }
+    lastGroup = item.group;
     const checked = checkedArr && checkedArr[i] ? 'checked' : '';
     html += `<label class="scr-check"><input type="checkbox" data-kind="${kind}" data-i="${i}" ${checked}><span>${item.label}</span></label>`;
   });

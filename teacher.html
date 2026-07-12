@@ -100,6 +100,28 @@ tbody tr{cursor:pointer}
 .trend-table td:first-child,.trend-table th:first-child{text-align:left}
 .printbtn{margin-top:18px}
 
+/* ---------- screening form ---------- */
+.scr-sec{border-top:1.5px dashed var(--line);padding-top:14px;margin-top:16px}
+.scr-sec h4{font-family:'Mitr';font-size:15px;margin-bottom:8px}
+.scr-group{font-size:12px;font-weight:700;color:var(--ink-soft);margin:8px 0 4px}
+.scr-check{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;padding:4px 0;cursor:pointer}
+.scr-check input{margin-top:3px;flex:none}
+.scr-comment{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px;margin-top:6px;resize:vertical;min-height:50px}
+.scr-trend{display:flex;gap:8px;margin-top:8px}
+.scr-trend label{flex:1;text-align:center;border:1.5px solid var(--line);border-radius:8px;padding:7px;font-size:13px;cursor:pointer;position:relative}
+.scr-trend input{position:absolute;opacity:0;inset:0;cursor:pointer}
+.scr-trend input:checked + span{font-weight:700}
+.scr-trend .t-ok input:checked ~ span, .scr-trend .t-ok input:checked{}
+.scr-trend .t-ok{color:var(--ok)} .scr-trend .t-warn{color:var(--warn)} .scr-trend .t-risk{color:var(--risk)}
+.scr-trend label:has(input:checked).t-ok{background:#E2F2E9;border-color:var(--ok)}
+.scr-trend label:has(input:checked).t-warn{background:#FBF0D8;border-color:var(--warn)}
+.scr-trend label:has(input:checked).t-risk{background:#FBE3DF;border-color:var(--risk)}
+.scr-basic{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin-bottom:14px}
+.scr-basic label{font-size:12px;font-weight:700;color:var(--ink-soft);display:block;margin-bottom:2px}
+.scr-basic input,.scr-basic select{width:100%;padding:7px 9px;border:1.5px solid var(--line);border-radius:8px;font-size:13.5px}
+.scr-save{width:100%;background:var(--accent);color:#fff;border:none;border-radius:11px;padding:12px;font-family:'Mitr';font-size:15px;cursor:pointer;margin-top:16px}
+.scr-save:disabled{background:#B9CFC9}
+
 /* ---------- print ---------- */
 @media print{
   body *{visibility:hidden}
@@ -195,6 +217,14 @@ tbody tr{cursor:pointer}
   <div class="modal" id="reportModal">
     <button class="close" onclick="closeReport()">✕</button>
     <div id="reportContent">กำลังโหลด...</div>
+  </div>
+</div>
+
+<!-- MODAL: แบบคัดกรองรายบุคคล -->
+<div class="overlay hidden" id="screenOverlay" onclick="if(event.target===this) closeScreeningForm()">
+  <div class="modal" id="screenModal" style="max-width:760px">
+    <button class="close" onclick="closeScreeningForm()">✕</button>
+    <div id="screenContent">กำลังโหลด...</div>
   </div>
 </div>
 
@@ -382,6 +412,7 @@ function buildReportHTML(r){
   const sdqRows = r.sdqHistory.map(h=>`<tr><td>${h.year}</td><td>${h.emotional.label}</td><td>${h.conduct.label}</td>
     <td>${h.hyper.label}</td><td>${h.peer.label}</td><td><b>${h.total.label}</b></td></tr>`).join('');
   const eqRows = r.eqHistory.map(h=>`<tr><td>${h.year}</td><td>${h.domain['ดี']}</td><td>${h.domain['เก่ง']}</td><td>${h.domain['สุข']}</td></tr>`).join('');
+  const latestSdq = r.sdqHistory[r.sdqHistory.length-1];
   return `
     <h2>${r.student.prefix}${r.student.first} ${r.student.last}</h2>
     <div class="sub">เลขประจำตัว ${r.student.id} · ${y['ระดับชั้น']||''}/${y['ห้อง']||''} เลขที่ ${y['เลขที่']||''}</div>
@@ -398,8 +429,24 @@ function buildReportHTML(r){
     <h4>พัฒนาการ EQ รายปี (คะแนนรวม ดี-เก่ง-สุข)</h4>
     ${eqRows?`<table class="trend-table"><tr><th>ปี</th><th>ดี</th><th>เก่ง</th><th>สุข</th></tr>${eqRows}</table>`:'<p class="sub">ยังไม่มีข้อมูล</p>'}
     ${buildCareerHTML(r.career)}
+    <h4>📋 คัดกรองนักเรียนรายบุคคล (โดยครูที่ปรึกษา)</h4>
+    ${buildScreeningSummaryHTML(r.screening)}
+    ${latestSdq?`<div class="sub" style="margin-top:8px"><b>Red Flag / 9S (เชื่อมจากผล SDQ ปี ${latestSdq.year}):</b>
+       สมาธิสั้น≈ไม่อยู่นิ่ง: ${pill(latestSdq.hyper.label)} · ซึมเศร้า/วิตกกังวล≈อารมณ์: ${pill(latestSdq.emotional.label)} · กลั่นแกล้ง/เพื่อน: ${pill(latestSdq.peer.label)}</div>`:''}
+    <button class="btn-sm" style="margin-top:14px" onclick="openScreeningForm('${r.student.id}')">📋 กรอก/แก้ไขแบบคัดกรองรายบุคคล</button>
     <button class="btn-sm printbtn" onclick="printReport('${r.student.id}')">🖨️ พิมพ์รายงานนี้ (PDF)</button>
   `;
+}
+
+function buildScreeningSummaryHTML(sc){
+  if(!sc) return '<p class="sub">ยังไม่มีการกรอกแบบคัดกรองรายบุคคลสำหรับปีนี้</p>';
+  let html = '';
+  if(sc.redFlag && sc.redFlag.selected && sc.redFlag.selected.indexOf('มี —')===0){
+    html += `<div class="alert err" style="display:block;margin-bottom:8px">🚩 <b>Red Flag:</b> ${sc.redFlag.selected}${sc.redFlag.note?`<br><span class="sub">หมายเหตุ: ${sc.redFlag.note}</span>`:''}</div>`;
+  }
+  html += `<div class="sub" style="margin-bottom:6px">ภาคเรียนล่าสุดที่บันทึก: ${fld(sc.semester)}</div>`;
+  html += sc.sections.map(s=>`<div style="margin-bottom:4px"><b style="font-size:13px">${s.title}:</b> ${pill(s.trend||'ยังไม่ระบุ')} ${s.comment?`<span class="sub">— ${s.comment}</span>`:''}</div>`).join('');
+  return html;
 }
 
 function fld(v){ return (v===undefined||v===null||v==='') ? '—' : v; }
@@ -491,6 +538,157 @@ function printSummary(){
   document.getElementById('printArea').style.display='block';
   window.print();
   document.getElementById('printArea').style.display='none';
+}
+
+/* ---------- แบบคัดกรองรายบุคคล (เฟส 5) ---------- */
+let SCREEN_SCHEMA = null;
+let REDFLAG_OPTS = null;
+let CURRENT_SCREEN_ID = null;
+
+// ต้องเรียงลำดับเหมือนฝั่งเซิร์ฟเวอร์เป๊ะๆ (index ใช้จับคู่ checkbox กับค่าที่บันทึก)
+function flattenChecks_(entries){
+  const flat = [];
+  (entries||[]).forEach(e=>{
+    if(typeof e === 'string') flat.push({label:e, group:null});
+    else (e.items||[]).forEach(it=> flat.push({label:it, group:e.group}));
+  });
+  return flat;
+}
+
+async function openScreeningForm(studentId){
+  CURRENT_SCREEN_ID = studentId;
+  document.getElementById('screenOverlay').classList.remove('hidden');
+  document.getElementById('screenContent').innerHTML = 'กำลังโหลด...';
+  try{
+    if(!SCREEN_SCHEMA){
+      const s = await api({action:'getScreeningSchema'});
+      if(!s.ok){ document.getElementById('screenContent').innerHTML = `<div class="alert err" style="display:block">${s.message||'โหลดแบบฟอร์มไม่สำเร็จ'}</div>`; return; }
+      SCREEN_SCHEMA = s.sections;
+      REDFLAG_OPTS = s.redFlagOptions;
+    }
+    const semester = prompt('ภาคเรียนที่ (1 หรือ 2)', '1') || '1';
+    const existing = await api({action:'getIndividualScreening', token:TOKEN, studentId, semester});
+    if(existing.expired){ closeScreeningForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
+    if(!existing.ok){ document.getElementById('screenContent').innerHTML = `<div class="alert err" style="display:block">${existing.message}</div>`; return; }
+    renderScreeningForm(studentId, semester, existing.exists ? existing : null);
+  }catch(e){ document.getElementById('screenContent').innerHTML = '<div class="alert err" style="display:block">โหลดแบบฟอร์มไม่สำเร็จ</div>'; }
+}
+function closeScreeningForm(){ document.getElementById('screenOverlay').classList.add('hidden'); }
+
+function renderScreeningForm(studentId, semester, data){
+  const basic = data ? data.basic : {};
+  const redFlag = data ? (data.redFlag||{}) : {};
+  const sections = data ? data.sections : {};
+  let html = `<h2>📋 แบบคัดกรองนักเรียนรายบุคคล</h2><div class="sub">เลขประจำตัว ${studentId} · ภาคเรียนที่ ${semester}</div>`;
+
+  html += `<div class="scr-basic" style="margin-top:14px">
+    <div><label>ชื่อเล่น</label><input id="sb_nickname" value="${fld2(basic.nickname)}"></div>
+    <div><label>เพศ</label><select id="sb_gender">
+      <option value="" ${!basic.gender?'selected':''}>เลือก</option>
+      <option ${basic.gender==='ชาย'?'selected':''}>ชาย</option>
+      <option ${basic.gender==='หญิง'?'selected':''}>หญิง</option>
+    </select></div>
+    <div><label>ชื่อภาษาอังกฤษ</label><input id="sb_firstEn" value="${fld2(basic.firstEn)}"></div>
+    <div><label>นามสกุลภาษาอังกฤษ</label><input id="sb_lastEn" value="${fld2(basic.lastEn)}"></div>
+    <div><label>ผลการเรียนเฉลี่ยเทอม 1</label><input id="sb_gpa1" value="${fld2(basic.gpa1)}"></div>
+    <div><label>ผลการเรียนเฉลี่ยเทอม 2</label><input id="sb_gpa2" value="${fld2(basic.gpa2)}"></div>
+    <div style="grid-column:1/-1"><label>ความสามารถพิเศษ</label><input id="sb_talent" value="${fld2(basic.talent)}" placeholder="เช่น ด้านกีฬา ดนตรี ศิลปะ"></div>
+  </div>`;
+
+  // Red Flag — ถ้าเข้าข่ายข้อ 1 หรือ 2 ถือว่าต้องดูแลทันที ไม่ต้องรอผล 9S/SDQ
+  html += `<div class="scr-sec" style="border-top-color:var(--risk)">
+    <h4 style="color:var(--risk)">🚩 Red Flag (ปัญหาที่ต้องดูแลทันที)</h4>
+    <div class="scr-group">เลือกข้อที่ตรงกับนักเรียนมากที่สุด</div>
+    ${REDFLAG_OPTS.map((opt,i)=>`<label class="scr-check"><input type="radio" name="redflag_opt" value="${opt.replace(/"/g,'&quot;')}" ${redFlag.selected===opt?'checked':''} onchange="toggleRedFlagWarning()"><span>${opt}</span></label>`).join('')}
+    <textarea class="scr-comment" id="redflag_note" placeholder="หมายเหตุเพิ่มเติม (ถ้ามี)">${fld2(redFlag.note)}</textarea>
+    <div class="alert err" id="redflagWarning" style="${(redFlag.selected||'').indexOf('มี —')===0?'display:block':'display:none'}">
+      ⚠️ กรณีนี้ควรดำเนินการดูแลช่วยเหลือทันที ไม่ต้องรอผลประเมินเพิ่มเติม กรุณาบันทึกการช่วยเหลือ/ส่งต่อตามขั้นตอนของโรงเรียนควบคู่กันไปด้วย
+    </div>
+  </div>`;
+
+  SCREEN_SCHEMA.forEach(sec=>{
+    const sd = sections[sec.id] || {risk:[], problem:[], comment:'', trend:''};
+    const riskFlat = flattenChecks_(sec.risk);
+    const problemFlat = flattenChecks_(sec.problem);
+    html += `<div class="scr-sec" data-sec="${sec.id}">
+      <h4>${sec.title}</h4>
+      <div class="scr-group">🟡 เข้าข่ายกลุ่มเสี่ยง (เลือกได้หลายข้อ)</div>
+      ${renderCheckList(riskFlat, 'risk', sd.risk)}
+      <div class="scr-group">🔴 เข้าข่ายกลุ่มมีปัญหา (เลือกได้หลายข้อ)</div>
+      ${renderCheckList(problemFlat, 'problem', sd.problem)}
+      <textarea class="scr-comment" data-role="comment" placeholder="ความคิดเห็นเพิ่มเติมโดยครูที่ปรึกษา (ถ้ามี)">${fld2(sd.comment)}</textarea>
+      <div class="scr-group">สรุปแนวโน้มของนักเรียน (ครูประเมินเอง)</div>
+      <div class="scr-trend">
+        <label class="t-ok"><input type="radio" name="trend_${sec.id}" value="ปกติ" ${sd.trend==='ปกติ'?'checked':''}><span>ปกติ</span></label>
+        <label class="t-warn"><input type="radio" name="trend_${sec.id}" value="เสี่ยง" ${sd.trend==='เสี่ยง'?'checked':''}><span>เสี่ยง</span></label>
+        <label class="t-risk"><input type="radio" name="trend_${sec.id}" value="มีปัญหา" ${sd.trend==='มีปัญหา'?'checked':''}><span>มีปัญหา</span></label>
+      </div>
+    </div>`;
+  });
+
+  html += `<div class="alert err" id="screenErr"></div>
+    <button class="scr-save" id="btnScreenSave" onclick="saveScreeningForm('${studentId}','${semester}')">บันทึกแบบคัดกรอง</button>`;
+  if(data && data.savedAt) html += `<div class="sub" style="text-align:center;margin-top:8px">บันทึกล่าสุดโดย ${fld2(data.savedBy)} เมื่อ ${new Date(data.savedAt).toLocaleString('th-TH')}</div>`;
+
+  document.getElementById('screenContent').innerHTML = html;
+}
+
+// วาดรายการ checkbox โดยรองรับทั้งข้อความล้วนและกลุ่มย่อย (เช่น 9.1 สารเสพติดที่แบ่งเป็นกลุ่ม)
+function renderCheckList(flatItems, kind, checkedArr){
+  let html = '', lastGroup = undefined;
+  flatItems.forEach((item,i)=>{
+    if(item.group !== lastGroup){
+      html += `<div class="scr-group" style="color:var(--ink);font-weight:600;margin-top:8px">${item.group}</div>`;
+      lastGroup = item.group;
+    }
+    const checked = checkedArr && checkedArr[i] ? 'checked' : '';
+    html += `<label class="scr-check"><input type="checkbox" data-kind="${kind}" data-i="${i}" ${checked}><span>${item.label}</span></label>`;
+  });
+  return html;
+}
+function toggleRedFlagWarning(){
+  const sel = document.querySelector('input[name="redflag_opt"]:checked');
+  document.getElementById('redflagWarning').style.display = (sel && sel.value.indexOf('มี —')===0) ? 'block' : 'none';
+}
+
+function fld2(v){ return (v===undefined||v===null) ? '' : v; }
+
+async function saveScreeningForm(studentId, semester){
+  const basic = {
+    nickname: document.getElementById('sb_nickname').value,
+    gender: document.getElementById('sb_gender').value,
+    firstEn: document.getElementById('sb_firstEn').value,
+    lastEn: document.getElementById('sb_lastEn').value,
+    gpa1: document.getElementById('sb_gpa1').value,
+    gpa2: document.getElementById('sb_gpa2').value,
+    talent: document.getElementById('sb_talent').value
+  };
+  const rfSel = document.querySelector('input[name="redflag_opt"]:checked');
+  const redFlag = { selected: rfSel?rfSel.value:'', note: document.getElementById('redflag_note').value };
+  const sections = {};
+  document.querySelectorAll('.scr-sec').forEach(secEl=>{
+    const id = secEl.dataset.sec;
+    const risk = [...secEl.querySelectorAll('input[data-kind="risk"]')].map(el=>el.checked);
+    const problem = [...secEl.querySelectorAll('input[data-kind="problem"]')].map(el=>el.checked);
+    const comment = secEl.querySelector('.scr-comment').value;
+    const trendEl = secEl.querySelector(`input[name="trend_${id}"]:checked`);
+    sections[id] = { risk, problem, comment, trend: trendEl?trendEl.value:'' };
+  });
+
+  const btn = document.getElementById('btnScreenSave');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  document.getElementById('screenErr').className = 'alert';
+  try{
+    const r = await api({action:'saveIndividualScreening', token:TOKEN, studentId, semester, basic, redFlag, sections});
+    if(!r.ok){
+      if(r.expired){ closeScreeningForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
+      document.getElementById('screenErr').textContent = r.message; document.getElementById('screenErr').className='alert err'; return;
+    }
+    closeScreeningForm();
+    openReport(studentId); // รีเฟรชรายงานหลักให้เห็นสรุปล่าสุด
+  }catch(e){
+    document.getElementById('screenErr').textContent = 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'; document.getElementById('screenErr').className='alert err';
+  }finally{ btn.disabled=false; btn.textContent='บันทึกแบบคัดกรอง'; }
 }
 
 /* ถ้ามี token ค้างอยู่ ลองเข้าเลย */

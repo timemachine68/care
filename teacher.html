@@ -88,7 +88,7 @@ tbody tr{cursor:pointer}
 .overlay{position:fixed;inset:0;background:rgba(30,58,95,.45);display:flex;align-items:flex-start;justify-content:center;
   padding:24px 14px;overflow-y:auto;overflow-x:hidden;z-index:50;box-sizing:border-box}
 .overlay.hidden{display:none}
-.modal{background:#fff;border-radius:16px;max-width:720px;width:100%;padding:26px 24px;position:relative;overflow-wrap:anywhere;word-break:break-word;box-sizing:border-box;min-width:0}
+.modal{background:#fff;border-radius:16px;max-width:720px;width:100%;flex:0 1 720px;padding:26px 24px;position:relative;overflow-wrap:anywhere;word-break:break-word;box-sizing:border-box;min-width:0}
 .modal .close{position:absolute;top:14px;right:16px;background:#EDF1F5;border:none;border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer}
 .modal h2{font-size:20px;margin-bottom:2px}
 .modal .sub{color:var(--ink-soft);font-size:13.5px;margin-bottom:16px}
@@ -106,8 +106,8 @@ tbody tr{cursor:pointer}
 .scr-sec h4{font-family:'Mitr';font-size:15px;margin-bottom:8px;overflow-wrap:anywhere;word-break:break-word}
 .scr-group{font-size:12px;font-weight:700;color:var(--ink-soft);margin:8px 0 4px;overflow-wrap:anywhere;word-break:break-word}
 .scr-check{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;padding:4px 0;cursor:pointer;width:100%;box-sizing:border-box}
-.scr-check input{margin-top:3px;flex:0 0 auto}
-.scr-check span{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;word-break:break-word;line-height:1.4}
+.scr-check input{margin-top:3px;flex:0 0 auto;width:auto}
+.scr-check span{flex:1 1 0%;min-width:0;overflow-wrap:anywhere;word-break:break-word;line-height:1.4}
 .scr-comment{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px;margin-top:6px;resize:vertical;min-height:50px}
 .scr-trend{display:flex;gap:8px;margin-top:8px}
 .scr-trend label{flex:1;text-align:center;border:1.5px solid var(--line);border-radius:8px;padding:7px;font-size:13px;cursor:pointer;position:relative}
@@ -233,9 +233,9 @@ tbody tr{cursor:pointer}
 
 <!-- MODAL: แบบคัดกรองรายบุคคล -->
 <div class="overlay hidden" id="screenOverlay" onclick="if(event.target===this) closeScreeningForm()">
-  <div class="modal" id="screenModal" style="max-width:760px">
+  <div class="modal" id="screenModal" style="max-width:760px;flex-basis:760px">
     <button class="close" onclick="closeScreeningForm()">✕</button>
-    <div id="screenContent">กำลังโหลด...</div>
+    <div id="screenContent" style="min-width:0;width:100%">กำลังโหลด...</div>
   </div>
 </div>
 

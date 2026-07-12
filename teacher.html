@@ -204,7 +204,7 @@ tbody tr{cursor:pointer}
 
 <script>
 /* ⚙️ วาง URL ของ Apps Script Web App (ตัวเดียวกับหน้านักเรียน) */
-const API_URL = 'https://script.google.com/macros/s/AKfycbzKNAzZkHHoW88i51xcfTpSgJ5rq2LOhIwAFmddldH-accgPsD1wLhFLAZfV0Fzi4zoOQ/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwCO8tT1z0lA89oqyavIU6hjvRs3hoydW8eJWk5TxeFWthd8fcW3yQc3xBzJkL2Upzv/exec';
 
 let TOKEN = sessionStorage.getItem('careToken') || '';
 let DATA = [];
@@ -397,8 +397,74 @@ function buildReportHTML(r){
     ${sdqRows?`<table class="trend-table"><tr><th>ปี</th><th>อารมณ์</th><th>ความประพฤติ</th><th>ไม่อยู่นิ่ง</th><th>เพื่อน</th><th>รวม</th></tr>${sdqRows}</table>`:'<p class="sub">ยังไม่มีข้อมูล</p>'}
     <h4>พัฒนาการ EQ รายปี (คะแนนรวม ดี-เก่ง-สุข)</h4>
     ${eqRows?`<table class="trend-table"><tr><th>ปี</th><th>ดี</th><th>เก่ง</th><th>สุข</th></tr>${eqRows}</table>`:'<p class="sub">ยังไม่มีข้อมูล</p>'}
+    ${buildCareerHTML(r.career)}
     <button class="btn-sm printbtn" onclick="printReport('${r.student.id}')">🖨️ พิมพ์รายงานนี้ (PDF)</button>
   `;
+}
+
+function fld(v){ return (v===undefined||v===null||v==='') ? '—' : v; }
+
+function buildCareerHTML(career){
+  if(!career || (!career.m6 && !career.m3 && !career.m6Error && !career.m3Error)) return '';
+  let html = '<h4>🎓 แผนการศึกษาต่อ</h4>';
+
+  if(career.m6){
+    const m = career.m6;
+    const latest = m.round3 || m.round2 || m.round1;
+    html += `<div class="sub" style="margin-bottom:6px">ข้อมูลจากระบบสำรวจ ม.6 · อัปเดตล่าสุด: ${m.latestRoundLabel}</div>`;
+    if(m.round3){
+      html += `<div class="repgrid">
+        <div><b>เส้นทางสุดท้าย</b>${fld(m.round3['เส้นทางสุดท้าย'])}</div>
+        <div><b>สถาบัน</b>${fld(m.round3['สถาบัน'])}</div>
+        <div><b>คณะ</b>${fld(m.round3['คณะ'])}</div>
+        <div><b>สาขา</b>${fld(m.round3['สาขา'])}</div>
+        <div><b>รอบที่ติด</b>${fld(m.round3['รอบที่ติด'])}</div>
+      </div>`;
+    } else if(m.round2){
+      html += `<div class="repgrid">
+        <div><b>เส้นทางปัจจุบัน</b>${fld(m.round2['เส้นทางปัจจุบัน'])}</div>
+        <div><b>รอบที่สมัครแล้ว</b>${fld(m.round2['รอบที่สมัครแล้ว'])}</div>
+        <div><b>สถานะผล</b>${fld(m.round2['สถานะผล'])}</div>
+        <div><b>สถาบัน</b>${fld(m.round2['สถาบัน'])}</div>
+        <div><b>คณะ/สาขา</b>${fld(m.round2['คณะ'])} / ${fld(m.round2['สาขา'])}</div>
+        <div><b>ต้องการให้ครูช่วย</b>${fld(m.round2['ต้องการให้ครูช่วย'])}</div>
+      </div>`;
+    } else if(m.round1){
+      html += `<div class="repgrid">
+        <div><b>เส้นทาง</b>${fld(m.round1['เส้นทาง'])}</div>
+        <div><b>สถาบัน/สาย</b>${fld(m.round1['สถาบัน/สาย'])}</div>
+        <div><b>คณะ</b>${fld(m.round1['คณะ'])}</div>
+        <div><b>สาขา</b>${fld(m.round1['สาขา'])}</div>
+        <div><b>ความมั่นใจ (1-5)</b>${fld(m.round1['ความมั่นใจ(1-5)'])}</div>
+        <div><b>ความกังวล/ขอความช่วยเหลือ</b>${fld(m.round1['ความกังวล/ขอความช่วยเหลือ'])}</div>
+      </div>`;
+    }
+    if(latest && String(latest['อยากนัดคุยกับครู']||'').trim()){
+      html += `<div class="sub" style="color:var(--risk)">⚠️ นักเรียนระบุว่าอยากนัดคุยกับครู: ${fld(latest['อยากนัดคุยกับครู'])}</div>`;
+    }
+  }
+
+  if(career.m3){
+    const m = career.m3;
+    const latest = m.round2 || m.round1;
+    html += `<div class="sub" style="margin-bottom:6px">ข้อมูลจากระบบสำรวจ ม.3 · อัปเดตล่าสุด: ${m.latestRoundLabel}</div>`;
+    html += `<div class="repgrid">
+      <div><b>เส้นทาง</b>${fld(latest['เส้นทาง'])}</div>
+      <div><b>แผนการเรียน (พูลเจริญ)</b>${fld(latest['แผนการเรียน (พูลเจริญ)'])}</div>
+      <div><b>สถานศึกษา</b>${fld(latest['สถานศึกษา'])}</div>
+      <div><b>สาขา/แผนการเรียน</b>${fld(latest['สาขา/แผนการเรียน'])}</div>
+      <div><b>จังหวัด</b>${fld(latest['จังหวัด'])}</div>
+      <div><b>เหตุผลหลัก</b>${fld(latest['เหตุผลหลัก'])}</div>
+    </div>`;
+  }
+
+  if(!career.m6 && !career.m3){
+    html += '<p class="sub">ยังไม่พบข้อมูลแผนการเรียนต่อของนักเรียนคนนี้ในระบบ ม.6/ม.3</p>';
+  }
+  if(career.m6Error) html += `<p class="sub" style="color:var(--risk)">${career.m6Error}</p>`;
+  if(career.m3Error) html += `<p class="sub" style="color:var(--risk)">${career.m3Error}</p>`;
+
+  return html;
 }
 
 /* ---------- พิมพ์ ---------- */

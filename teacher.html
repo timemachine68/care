@@ -51,6 +51,11 @@ button{font-family:'Mitr';font-weight:500;font-size:16px;cursor:pointer;border:n
 
 .tools{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:center}
 .tools select,.tools input{width:auto;min-width:150px;padding:8px 11px;font-size:14px}
+.col-screening{display:none}
+.tablewrap.mode-screening .col-screening{display:table-cell}
+.tablewrap.mode-screening .col-sdq,.tablewrap.mode-screening .col-eq{display:none}
+.tablewrap.mode-sdq .col-eq{display:none}
+.tablewrap.mode-eq .col-sdq{display:none}
 .tablewrap{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);overflow:auto}
 table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:760px}
 th,td{padding:9px 12px;text-align:left;border-bottom:1px solid #E8EDF2;white-space:nowrap}
@@ -96,8 +101,8 @@ tbody tr{cursor:pointer}
 .repgrid div{min-width:0;overflow-wrap:anywhere;word-break:break-word}
 .repgrid div b{display:block;font-size:11.5px;color:var(--ink-soft);font-weight:600}
 .modal h4{font-family:'Mitr';font-size:15px;margin:18px 0 8px;border-top:1.5px dashed var(--line);padding-top:14px}
-.trend-table{width:100%;border-collapse:collapse;font-size:13px}
-.trend-table th,.trend-table td{padding:6px 8px;border-bottom:1px solid #EEF2F0;text-align:center}
+.trend-table{width:100%;min-width:0;table-layout:fixed;border-collapse:collapse;font-size:13px}
+.trend-table th,.trend-table td{padding:6px 8px;border-bottom:1px solid #EEF2F0;text-align:center;overflow-wrap:anywhere;word-break:break-word}
 .trend-table td:first-child,.trend-table th:first-child{text-align:left}
 .printbtn{margin-top:18px}
 
@@ -123,6 +128,15 @@ tbody tr{cursor:pointer}
 .scr-basic input,.scr-basic select{width:100%;padding:7px 9px;border:1.5px solid var(--line);border-radius:8px;font-size:13.5px}
 .scr-save{width:100%;background:var(--accent);color:#fff;border:none;border-radius:11px;padding:12px;font-family:'Mitr';font-size:15px;cursor:pointer;margin-top:16px}
 .scr-save:disabled{background:#B9CFC9}
+
+.hv-field{margin-bottom:14px;min-width:0}
+.hv-field > label{display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;overflow-wrap:anywhere;word-break:break-word}
+.hv-field input[type=text],.hv-field input[type=number]{width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;box-sizing:border-box}
+.hv-field textarea{width:100%;min-height:70px;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box}
+.hv-subgroup{margin-top:2px;margin-bottom:6px}
+.hv-photo-box{border:1.5px dashed var(--line);border-radius:10px;padding:14px;text-align:center}
+.hv-photo-box img{max-width:100%;max-height:180px;border-radius:8px;display:block;margin:0 auto 8px}
+.hv-photo-status{font-size:12.5px;color:var(--ink-soft);margin-top:4px}
 
 /* ---------- print ---------- */
 @media print{
@@ -178,25 +192,33 @@ tbody tr{cursor:pointer}
 
   <div class="charts">
     <div class="chartcard">
-      <h3>สัดส่วนผล SDQ รวม</h3>
+      <h3 id="donutTitle">สัดส่วนผล SDQ รวม</h3>
       <div class="chartbox"><canvas id="donutChart"></canvas></div>
     </div>
     <div class="chartcard">
-      <h3>จำนวนกลุ่มเสี่ยง/มีปัญหา แยกตามห้อง</h3>
+      <h3 id="roomChartTitle">จำนวนกลุ่มเสี่ยง/มีปัญหา แยกตามห้อง</h3>
       <div class="chartbox"><canvas id="roomChart"></canvas></div>
     </div>
   </div>
 
   <div class="risklist">
-    <h3>🚩 รายชื่อกลุ่มเสี่ยง เรียงตามความเร่งด่วน</h3>
+    <h3 id="riskHeading">🚩 รายชื่อกลุ่มเสี่ยง เรียงตามความเร่งด่วน</h3>
     <div id="riskBody"></div>
   </div>
 
   <div class="tools">
-    <button class="btn-sm" onclick="printSummary()">🖨️ พิมพ์รายงานสรุปสำหรับ ผอ. (PDF)</button>
+    <button class="btn-sm" onclick="printSummary()">🖨️ พิมพ์ภาพรวมทั้งโรงเรียน (ผอ.)</button>
+    <select id="fPrintRoom" style="min-width:170px"></select>
+    <button class="btn-sm" onclick="printRoom()">🖨️ พิมพ์รายงานห้องนี้</button>
   </div>
 
   <div class="tools">
+    <select id="fActivity" onchange="changeActivity()" style="font-weight:700">
+      <option value="all">ทุกกิจกรรม (SDQ+EQ)</option>
+      <option value="sdq">เฉพาะ SDQ</option>
+      <option value="eq">เฉพาะ EQ</option>
+      <option value="screening">เฉพาะคัดกรองรายบุคคล (ข้อ 5-9)</option>
+    </select>
     <select id="fRoom" onchange="render()"><option value="">ทุกห้อง</option></select>
     <select id="fResult" onchange="render()">
       <option value="">ผล SDQ ทั้งหมด</option>
@@ -212,7 +234,8 @@ tbody tr{cursor:pointer}
     <table>
       <thead><tr>
         <th>ห้อง</th><th>เลขที่</th><th>เลขประจำตัว</th><th>ชื่อ-สกุล</th>
-        <th>SDQ รวม</th><th>ด้านที่ต้องดูแล (SDQ)</th><th>EQ</th>
+        <th class="col-sdq">SDQ รวม</th><th class="col-sdq">ด้านที่ต้องดูแล (SDQ)</th><th class="col-eq">EQ</th>
+        <th class="col-screening">คัดกรองรายบุคคล</th><th class="col-screening">จุดที่ต้องดูแล</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -228,6 +251,14 @@ tbody tr{cursor:pointer}
   <div class="modal" id="reportModal">
     <button class="close" onclick="closeReport()">✕</button>
     <div id="reportContent">กำลังโหลด...</div>
+  </div>
+</div>
+
+<!-- MODAL: ข้อมูลรู้จักนักเรียน/เยี่ยมบ้าน -->
+<div class="overlay hidden" id="hvOverlay" onclick="if(event.target===this) closeHomeVisitForm()">
+  <div class="modal" id="hvModal" style="max-width:820px;flex-basis:820px">
+    <button class="close" onclick="closeHomeVisitForm()">✕</button>
+    <div id="hvContent">กำลังโหลด...</div>
   </div>
 </div>
 
@@ -301,6 +332,9 @@ async function loadStudents(){
       `เข้าใช้โดย <b>${r.teacher.name}</b> · ${r.teacher.role==='admin'?'เห็นข้อมูลทุกห้อง':'ดูแล '+r.teacher.rooms}`;
     const rooms=[...new Set(DATA.map(x=>x.room).filter(x=>x!=='—'))].sort();
     document.getElementById('fRoom').innerHTML='<option value="">ทุกห้อง</option>'+rooms.map(x=>`<option>${x}</option>`).join('');
+    document.getElementById('fPrintRoom').innerHTML = rooms.length
+      ? rooms.map(x=>`<option>${x}</option>`).join('')
+      : '<option value="">— ไม่มีห้องให้เลือก —</option>';
     render();
   }catch(e){ showErr('dashErr','เชื่อมต่อระบบไม่ได้'); }
 }
@@ -318,59 +352,202 @@ function problemAreas(s){
   return bad.length?bad.join(', '):'<span class="sub">ไม่มี</span>';
 }
 
+let ACTIVITY_MODE = 'all'; // 'all' | 'sdq' | 'eq' | 'screening'
+let SCREEN_LOADED = false;
+
+async function changeActivity(){
+  ACTIVITY_MODE = document.getElementById('fActivity').value;
+  const tw = document.querySelector('.tablewrap');
+  tw.className = 'tablewrap mode-'+ACTIVITY_MODE;
+  buildResultOptions();
+
+  if(ACTIVITY_MODE==='screening' && !SCREEN_LOADED){
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="9">กำลังโหลดข้อมูลคัดกรองรายบุคคล...</td></tr>';
+    try{
+      const r = await api({action:'getScreeningOverview', token:TOKEN});
+      if(r.expired){ logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
+      if(!r.ok){ document.getElementById('tbody').innerHTML = `<tr><td colspan="9">${r.message}</td></tr>`; return; }
+      const map={}; r.rows.forEach(x=>map[x.id]=x.screening);
+      DATA.forEach(x=>{ x.screening = map[x.id]||null; });
+      SCREEN_LOADED = true;
+    }catch(e){
+      document.getElementById('tbody').innerHTML = '<tr><td colspan="9">โหลดข้อมูลคัดกรองรายบุคคลไม่สำเร็จ</td></tr>';
+      return;
+    }
+  }
+  render();
+}
+
+function buildResultOptions(){
+  const sel = document.getElementById('fResult');
+  if(ACTIVITY_MODE==='eq'){
+    sel.innerHTML = `
+      <option value="">ผล EQ ทั้งหมด</option>
+      <option value="eq-low">เฉพาะ ต่ำกว่าเกณฑ์อย่างน้อย 1 ด้าน</option>
+      <option value="eq-ok">เฉพาะ ปกติทุกด้าน</option>
+      <option value="eq-none">ยังไม่ทำแบบประเมิน</option>`;
+  } else if(ACTIVITY_MODE==='screening'){
+    sel.innerHTML = `
+      <option value="">ทุกสถานะ</option>
+      <option value="scr-redflag">เฉพาะ Red Flag</option>
+      <option value="scr-problem">เฉพาะ มีปัญหา</option>
+      <option value="scr-risk">เฉพาะ เสี่ยง</option>
+      <option value="scr-none">ยังไม่กรอกแบบคัดกรอง</option>`;
+  } else {
+    sel.innerHTML = `
+      <option value="">ผล SDQ ทั้งหมด</option>
+      <option value="มีปัญหา">เฉพาะ มีปัญหา</option>
+      <option value="เสี่ยง">เฉพาะ เสี่ยง</option>
+      <option value="ปกติ">เฉพาะ ปกติ</option>
+      <option value="ยังไม่ทำ">ยังไม่ทำแบบประเมิน</option>`;
+  }
+  sel.value = '';
+}
+
 function render(){
   const room=document.getElementById('fRoom').value;
   const res=document.getElementById('fResult').value;
   const q=document.getElementById('fSearch').value.trim();
   const rows=DATA.filter(x=>{
     if(room && x.room!==room) return false;
-    if(res==='ยังไม่ทำ'){ if(x.sdq) return false; }
-    else if(res){ if(!x.sdq || x.sdq.total!==res) return false; }
+    if(ACTIVITY_MODE==='eq'){
+      if(res==='eq-none'){ if(x.eq) return false; }
+      else if(res==='eq-ok'){ if(!x.eq || x.eq!=='ปกติทุกด้าน') return false; }
+      else if(res==='eq-low'){ if(!x.eq || x.eq==='ปกติทุกด้าน') return false; }
+    } else if(ACTIVITY_MODE==='screening'){
+      if(res==='scr-none'){ if(x.screening) return false; }
+      else if(res==='scr-redflag'){ if(!x.screening||!x.screening.redFlag) return false; }
+      else if(res==='scr-problem'){ if(!x.screening||x.screening.overall!=='มีปัญหา') return false; }
+      else if(res==='scr-risk'){ if(!x.screening||x.screening.overall!=='เสี่ยง') return false; }
+    } else {
+      if(res==='ยังไม่ทำ'){ if(x.sdq) return false; }
+      else if(res){ if(!x.sdq || x.sdq.total!==res) return false; }
+    }
     if(q && !(x.name.includes(q)||x.id.includes(q))) return false;
     return true;
   });
 
-  // สรุปตัวเลข (จากข้อมูลตามสิทธิ์ทั้งหมด ไม่ใช่ตามฟิลเตอร์)
-  const done=DATA.filter(x=>x.sdq).length;
-  const risk=DATA.filter(x=>x.sdq&&x.sdq.total==='เสี่ยง').length;
-  const prob=DATA.filter(x=>x.sdq&&x.sdq.total==='มีปัญหา').length;
-  document.getElementById('stats').innerHTML=`
-    <div class="stat"><div class="n">${DATA.length}</div><div class="l">นักเรียนทั้งหมด</div></div>
-    <div class="stat s-ok"><div class="n">${done}</div><div class="l">ทำแบบประเมินแล้ว</div></div>
-    <div class="stat s-warn"><div class="n">${risk}</div><div class="l">SDQ กลุ่มเสี่ยง</div></div>
-    <div class="stat s-risk"><div class="n">${prob}</div><div class="l">SDQ มีปัญหา</div></div>`;
+  // สรุปตัวเลข (จากข้อมูลตามสิทธิ์ทั้งหมด ไม่ใช่ตามฟิลเตอร์ห้อง/ค้นหา แต่ตามโหมดกิจกรรมที่เลือก)
+  if(ACTIVITY_MODE==='eq'){
+    const done=DATA.filter(x=>x.eq).length;
+    const ok=DATA.filter(x=>x.eq==='ปกติทุกด้าน').length;
+    const low=DATA.filter(x=>x.eq&&x.eq!=='ปกติทุกด้าน').length;
+    document.getElementById('stats').innerHTML=`
+      <div class="stat"><div class="n">${DATA.length}</div><div class="l">นักเรียนทั้งหมด</div></div>
+      <div class="stat s-ok"><div class="n">${done}</div><div class="l">ทำแบบประเมิน EQ แล้ว</div></div>
+      <div class="stat s-ok"><div class="n">${ok}</div><div class="l">EQ ปกติทุกด้าน</div></div>
+      <div class="stat s-warn"><div class="n">${low}</div><div class="l">EQ ต่ำกว่าเกณฑ์อย่างน้อย 1 ด้าน</div></div>`;
+  } else if(ACTIVITY_MODE==='screening'){
+    const done=DATA.filter(x=>x.screening).length;
+    const redflag=DATA.filter(x=>x.screening&&x.screening.redFlag).length;
+    const prob=DATA.filter(x=>x.screening&&x.screening.overall==='มีปัญหา').length;
+    document.getElementById('stats').innerHTML=`
+      <div class="stat"><div class="n">${DATA.length}</div><div class="l">นักเรียนทั้งหมด</div></div>
+      <div class="stat s-ok"><div class="n">${done}</div><div class="l">กรอกคัดกรองแล้ว</div></div>
+      <div class="stat s-risk"><div class="n">${redflag}</div><div class="l">Red Flag</div></div>
+      <div class="stat s-risk"><div class="n">${prob}</div><div class="l">มีปัญหาอย่างน้อย 1 ด้าน</div></div>`;
+  } else {
+    const done=DATA.filter(x=>x.sdq).length;
+    const risk=DATA.filter(x=>x.sdq&&x.sdq.total==='เสี่ยง').length;
+    const prob=DATA.filter(x=>x.sdq&&x.sdq.total==='มีปัญหา').length;
+    document.getElementById('stats').innerHTML=`
+      <div class="stat"><div class="n">${DATA.length}</div><div class="l">นักเรียนทั้งหมด</div></div>
+      <div class="stat s-ok"><div class="n">${done}</div><div class="l">ทำแบบประเมิน${ACTIVITY_MODE==='sdq'?' SDQ':''}แล้ว</div></div>
+      <div class="stat s-warn"><div class="n">${risk}</div><div class="l">SDQ กลุ่มเสี่ยง</div></div>
+      <div class="stat s-risk"><div class="n">${prob}</div><div class="l">SDQ มีปัญหา</div></div>`;
+  }
 
   document.getElementById('tbody').innerHTML = rows.length ? rows.map(x=>`
     <tr onclick="openReport('${x.id}')">
       <td>${x.room}</td><td>${x.no||''}</td><td>${x.id}</td><td>${x.name}</td>
-      <td>${pill(x.sdq&&x.sdq.total)}</td>
-      <td>${problemAreas(x.sdq)}</td>
-      <td>${x.eq?(x.eq==='ปกติทุกด้าน'?'<span class="pill p-ok">ปกติทุกด้าน</span>':`<span class="pill p-warn">${x.eq}</span>`):'<span class="pill p-none">ยังไม่ทำ</span>'}</td>
-    </tr>`).join('') : '<tr><td colspan="7">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';
+      <td class="col-sdq">${pill(x.sdq&&x.sdq.total)}</td>
+      <td class="col-sdq">${problemAreas(x.sdq)}</td>
+      <td class="col-eq">${x.eq?(x.eq==='ปกติทุกด้าน'?'<span class="pill p-ok">ปกติทุกด้าน</span>':`<span class="pill p-warn">${x.eq}</span>`):'<span class="pill p-none">ยังไม่ทำ</span>'}</td>
+      <td class="col-screening">${screeningPill(x.screening)}</td>
+      <td class="col-screening" style="text-align:left;font-size:12px">${x.screening&&x.screening.areas&&x.screening.areas.length?x.screening.areas.join(', '):'<span class="sub">—</span>'}</td>
+    </tr>`).join('') : '<tr><td colspan="9">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';
 
   drawCharts();
   renderRiskList();
+}
+function screeningPill(s){
+  if(!s) return '<span class="pill p-none">ยังไม่กรอก</span>';
+  if(s.redFlag) return '<span class="pill p-risk">🚩 Red Flag</span>';
+  if(s.overall==='ยังไม่ระบุ') return '<span class="pill p-none">ยังไม่ระบุ</span>';
+  return pill(s.overall);
 }
 
 /* ---------- กราฟภาพรวม ---------- */
 let donutChart=null, roomChart=null;
 function drawCharts(){
+  const ctx1=document.getElementById('donutChart');
+  const ctx2=document.getElementById('roomChart');
+  const rooms=[...new Set(DATA.map(x=>x.room).filter(x=>x!=='—'))].sort();
+  if(donutChart) donutChart.destroy();
+  if(roomChart) roomChart.destroy();
+
+  if(ACTIVITY_MODE==='screening'){
+    document.getElementById('donutTitle').textContent = 'สัดส่วนผลคัดกรองรายบุคคล';
+    document.getElementById('roomChartTitle').textContent = 'จำนวน Red Flag/มีปัญหา แยกตามห้อง';
+
+    const statusCount={'ปกติ':0,'เสี่ยง':0,'มีปัญหา':0,'ยังไม่กรอก':0};
+    DATA.forEach(x=>{
+      if(!x.screening || x.screening.overall==='ยังไม่ระบุ') statusCount['ยังไม่กรอก']++;
+      else statusCount[x.screening.overall]++;
+    });
+    donutChart=new Chart(ctx1,{type:'doughnut',data:{
+      labels:Object.keys(statusCount),
+      datasets:[{data:Object.values(statusCount),backgroundColor:['#3E9B6E','#DBA02E','#D65A4A','#C7D3DE'],borderWidth:0}]
+    },options:{plugins:{legend:{position:'bottom',labels:{font:{family:'Anuphan',size:12}}}}}});
+
+    const redflagByRoom=rooms.map(r=>DATA.filter(x=>x.room===r&&x.screening&&x.screening.redFlag).length);
+    const probByRoom=rooms.map(r=>DATA.filter(x=>x.room===r&&x.screening&&x.screening.overall==='มีปัญหา').length);
+    roomChart=new Chart(ctx2,{type:'bar',data:{labels:rooms,datasets:[
+      {label:'Red Flag',data:redflagByRoom,backgroundColor:'#D65A4A'},
+      {label:'มีปัญหา',data:probByRoom,backgroundColor:'#DBA02E'}
+    ]},options:{responsive:true,maintainAspectRatio:false,
+      scales:{x:{stacked:true,ticks:{font:{family:'Anuphan',size:11}}},y:{stacked:true,beginAtZero:true,ticks:{stepSize:1}}},
+      plugins:{legend:{position:'bottom',labels:{font:{family:'Anuphan',size:12}}}}}});
+    return;
+  }
+
+  if(ACTIVITY_MODE==='eq'){
+    document.getElementById('donutTitle').textContent = 'สัดส่วนผล EQ รวม';
+    document.getElementById('roomChartTitle').textContent = 'จำนวนต่ำกว่าเกณฑ์ (EQ) แยกตามห้อง';
+
+    const statusCount={'ปกติทุกด้าน':0,'ต่ำกว่าเกณฑ์':0,'ยังไม่ทำ':0};
+    DATA.forEach(x=>{
+      if(!x.eq) statusCount['ยังไม่ทำ']++;
+      else if(x.eq==='ปกติทุกด้าน') statusCount['ปกติทุกด้าน']++;
+      else statusCount['ต่ำกว่าเกณฑ์']++;
+    });
+    donutChart=new Chart(ctx1,{type:'doughnut',data:{
+      labels:Object.keys(statusCount),
+      datasets:[{data:Object.values(statusCount),backgroundColor:['#3E9B6E','#DBA02E','#C7D3DE'],borderWidth:0}]
+    },options:{plugins:{legend:{position:'bottom',labels:{font:{family:'Anuphan',size:12}}}}}});
+
+    const lowByRoom=rooms.map(r=>DATA.filter(x=>x.room===r&&x.eq&&x.eq!=='ปกติทุกด้าน').length);
+    roomChart=new Chart(ctx2,{type:'bar',data:{labels:rooms,datasets:[
+      {label:'ต่ำกว่าเกณฑ์อย่างน้อย 1 ด้าน',data:lowByRoom,backgroundColor:'#DBA02E'}
+    ]},options:{responsive:true,maintainAspectRatio:false,
+      scales:{x:{ticks:{font:{family:'Anuphan',size:11}}},y:{beginAtZero:true,ticks:{stepSize:1}}},
+      plugins:{legend:{position:'bottom',labels:{font:{family:'Anuphan',size:12}}}}}});
+    return;
+  }
+
+  document.getElementById('donutTitle').textContent = 'สัดส่วนผล SDQ รวม';
+  document.getElementById('roomChartTitle').textContent = 'จำนวนกลุ่มเสี่ยง/มีปัญหา แยกตามห้อง';
+
   const statusCount={ปกติ:0,เสี่ยง:0,มีปัญหา:0,'ยังไม่ทำ':0};
   DATA.forEach(x=> statusCount[x.sdq?x.sdq.total:'ยังไม่ทำ']++ );
-
-  const ctx1=document.getElementById('donutChart');
-  if(donutChart) donutChart.destroy();
   donutChart=new Chart(ctx1,{type:'doughnut',data:{
     labels:Object.keys(statusCount),
     datasets:[{data:Object.values(statusCount),
       backgroundColor:['#3E9B6E','#DBA02E','#D65A4A','#C7D3DE'],borderWidth:0}]
   },options:{plugins:{legend:{position:'bottom',labels:{font:{family:'Anuphan',size:12}}}}}});
 
-  const rooms=[...new Set(DATA.map(x=>x.room).filter(x=>x!=='—'))].sort();
   const riskByRoom=rooms.map(r=>DATA.filter(x=>x.room===r&&x.sdq&&x.sdq.total==='เสี่ยง').length);
   const probByRoom=rooms.map(r=>DATA.filter(x=>x.room===r&&x.sdq&&x.sdq.total==='มีปัญหา').length);
-  const ctx2=document.getElementById('roomChart');
-  if(roomChart) roomChart.destroy();
   roomChart=new Chart(ctx2,{type:'bar',data:{labels:rooms,datasets:[
     {label:'เสี่ยง',data:riskByRoom,backgroundColor:'#DBA02E'},
     {label:'มีปัญหา',data:probByRoom,backgroundColor:'#D65A4A'}
@@ -381,27 +558,59 @@ function drawCharts(){
 
 /* ---------- รายชื่อกลุ่มเสี่ยงเรียงความเร่งด่วน ---------- */
 function urgencyScore(x){
+  if(ACTIVITY_MODE==='screening'){
+    if(!x.screening) return -1;
+    let s=0;
+    if(x.screening.redFlag) s+=200;
+    if(x.screening.overall==='มีปัญหา') s+=80;
+    else if(x.screening.overall==='เสี่ยง') s+=40;
+    s += (x.screening.areas?x.screening.areas.length:0)*3;
+    return s;
+  }
+  if(ACTIVITY_MODE==='eq'){
+    if(!x.eq) return -1;
+    if(x.eq==='ปกติทุกด้าน') return 0;
+    const n=(x.eq.match(/,/g)||[]).length+1; // จำนวนด้านที่ต่ำกว่าเกณฑ์
+    return 40+n*10;
+  }
   if(!x.sdq) return -1;
   let s = x.sdq.total==='มีปัญหา'?100:x.sdq.total==='เสี่ยง'?50:0;
-  const map={em:'อารมณ์',co:'ความประพฤติ',hy:'ไม่อยู่นิ่ง',pe:'เพื่อน'};
-  Object.keys(map).forEach(k=>{ if(x.sdq[k]==='มีปัญหา') s+=8; else if(x.sdq[k]==='เสี่ยง') s+=4; });
-  if(x.eq && x.eq!=='ปกติทุกด้าน') s += (x.eq.match(/,/g)||[]).length*2 + 3;
+  ['em','co','hy','pe'].forEach(k=>{ if(x.sdq[k]==='มีปัญหา') s+=8; else if(x.sdq[k]==='เสี่ยง') s+=4; });
+  if(ACTIVITY_MODE==='all' && x.eq && x.eq!=='ปกติทุกด้าน') s += (x.eq.match(/,/g)||[]).length*2 + 3;
   return s;
 }
 function renderRiskList(){
+  const heading = document.getElementById('riskHeading');
+  heading.textContent = ACTIVITY_MODE==='eq' ? '🚩 รายชื่อกลุ่มเสี่ยง (EQ) เรียงตามความเร่งด่วน'
+    : ACTIVITY_MODE==='sdq' ? '🚩 รายชื่อกลุ่มเสี่ยง (SDQ) เรียงตามความเร่งด่วน'
+    : ACTIVITY_MODE==='screening' ? '🚩 รายชื่อกลุ่มเสี่ยง (คัดกรองรายบุคคล) เรียงตามความเร่งด่วน'
+    : '🚩 รายชื่อกลุ่มเสี่ยง เรียงตามความเร่งด่วน';
+
   const rows=DATA.map(x=>({...x,score:urgencyScore(x)}))
     .filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,15);
   const box=document.getElementById('riskBody');
   if(!rows.length){ box.innerHTML='<div class="empty">ยังไม่มีนักเรียนกลุ่มเสี่ยงตามข้อมูลปัจจุบัน 🎉</div>'; return; }
   box.innerHTML = rows.map(x=>{
     const c = x.score>=100 ? 'var(--risk)' : 'var(--warn)';
+    let areas, pillHtml;
+    if(ACTIVITY_MODE==='screening'){
+      const s=x.screening;
+      areas = (s.redFlag?'🚩 Red Flag':'') + (s.areas&&s.areas.length ? (s.redFlag?' · ':'')+s.areas.join(', ') : '');
+      pillHtml = s.redFlag ? '<span class="pill p-risk">Red Flag</span>' : screeningPill(s);
+    } else if(ACTIVITY_MODE==='eq'){
+      areas = x.eq && x.eq!=='ปกติทุกด้าน' ? x.eq.replace('ต่ำกว่าเกณฑ์: ','') : '';
+      pillHtml = x.eq==='ปกติทุกด้าน' ? '<span class="pill p-ok">ปกติทุกด้าน</span>' : '<span class="pill p-warn">ต่ำกว่าเกณฑ์</span>';
+    } else {
+      areas = problemAreas(x.sdq).replace(/<[^>]+>/g,'') + (ACTIVITY_MODE==='all' && x.eq && x.eq!=='ปกติทุกด้าน' ? ' · EQ: '+x.eq.replace('ต่ำกว่าเกณฑ์: ',''):'');
+      pillHtml = pill(x.sdq&&x.sdq.total);
+    }
     return `<div class="riskrow" onclick="openReport('${x.id}')">
       <div class="rk" style="background:${c}">${x.room}</div>
       <div class="info">
         <div class="name">${x.name} <span class="sub">(${x.id})</span></div>
-        <div class="areas">${problemAreas(x.sdq).replace(/<[^>]+>/g,'')}${x.eq&&x.eq!=='ปกติทุกด้าน'?' · EQ: '+x.eq.replace('ต่ำกว่าเกณฑ์: ',''):''}</div>
+        <div class="areas">${areas}</div>
       </div>
-      ${pill(x.sdq&&x.sdq.total)}
+      ${pillHtml}
     </div>`;
   }).join('');
 }
@@ -445,6 +654,7 @@ function buildReportHTML(r){
     ${latestSdq?`<div class="sub" style="margin-top:8px"><b>Red Flag / 9S (เชื่อมจากผล SDQ ปี ${latestSdq.year}):</b>
        สมาธิสั้น≈ไม่อยู่นิ่ง: ${pill(latestSdq.hyper.label)} · ซึมเศร้า/วิตกกังวล≈อารมณ์: ${pill(latestSdq.emotional.label)} · กลั่นแกล้ง/เพื่อน: ${pill(latestSdq.peer.label)}</div>`:''}
     <button class="btn-sm" style="margin-top:14px" onclick="openScreeningForm('${r.student.id}')">📋 กรอก/แก้ไขแบบคัดกรองรายบุคคล</button>
+    <button class="btn-sm" style="margin-top:14px" onclick="openHomeVisitForm('${r.student.id}')">🏠 กรอก/แก้ไขข้อมูลรู้จักนักเรียน (เยี่ยมบ้าน)</button>
     <button class="btn-sm printbtn" onclick="printReport('${r.student.id}')">🖨️ พิมพ์รายงานนี้ (PDF)</button>
   `;
 }
@@ -525,6 +735,68 @@ function buildCareerHTML(career){
   return html;
 }
 
+/* ---------- คำนวณสรุปแยกตามห้อง ---------- */
+function roomBreakdown(data){
+  const rooms=[...new Set(data.map(x=>x.room).filter(x=>x!=='—'))].sort();
+  if(ACTIVITY_MODE==='screening'){
+    return rooms.map(room=>{
+      const rs=data.filter(x=>x.room===room);
+      return { room, total: rs.length,
+        redflag: rs.filter(x=>x.screening&&x.screening.redFlag).length,
+        problem: rs.filter(x=>x.screening&&x.screening.overall==='มีปัญหา').length,
+        risk: rs.filter(x=>x.screening&&x.screening.overall==='เสี่ยง').length,
+        notDone: rs.filter(x=>!x.screening).length };
+    });
+  }
+  if(ACTIVITY_MODE==='eq'){
+    return rooms.map(room=>{
+      const rs=data.filter(x=>x.room===room);
+      return { room, total: rs.length,
+        ok: rs.filter(x=>x.eq==='ปกติทุกด้าน').length,
+        low: rs.filter(x=>x.eq&&x.eq!=='ปกติทุกด้าน').length,
+        notDone: rs.filter(x=>!x.eq).length };
+    });
+  }
+  return rooms.map(room=>{
+    const rs=data.filter(x=>x.room===room);
+    return {
+      room,
+      total: rs.length,
+      normal: rs.filter(x=>x.sdq&&x.sdq.total==='ปกติ').length,
+      risk: rs.filter(x=>x.sdq&&x.sdq.total==='เสี่ยง').length,
+      problem: rs.filter(x=>x.sdq&&x.sdq.total==='มีปัญหา').length,
+      notDone: rs.filter(x=>!x.sdq).length
+    };
+  });
+}
+function roomBreakdownTable(breakdown){
+  if(ACTIVITY_MODE==='screening'){
+    return `<table class="trend-table" style="margin-bottom:20px">
+      <tr><th>ห้อง</th><th>นักเรียน</th><th>Red Flag</th><th>มีปัญหา</th><th>เสี่ยง</th><th>ยังไม่กรอก</th></tr>
+      ${breakdown.map(b=>`<tr><td>${b.room}</td><td>${b.total}</td>
+        <td style="color:var(--risk);font-weight:${b.redflag?'700':'400'}">${b.redflag}</td>
+        <td style="color:var(--risk);font-weight:${b.problem?'700':'400'}">${b.problem}</td>
+        <td style="color:var(--warn);font-weight:${b.risk?'700':'400'}">${b.risk}</td>
+        <td>${b.notDone}</td></tr>`).join('')}
+    </table>`;
+  }
+  if(ACTIVITY_MODE==='eq'){
+    return `<table class="trend-table" style="margin-bottom:20px">
+      <tr><th>ห้อง</th><th>นักเรียน</th><th>ปกติทุกด้าน</th><th>ต่ำกว่าเกณฑ์</th><th>ยังไม่ทำ</th></tr>
+      ${breakdown.map(b=>`<tr><td>${b.room}</td><td>${b.total}</td><td>${b.ok}</td>
+        <td style="color:var(--warn);font-weight:${b.low?'700':'400'}">${b.low}</td>
+        <td>${b.notDone}</td></tr>`).join('')}
+    </table>`;
+  }
+  return `<table class="trend-table" style="margin-bottom:20px">
+    <tr><th>ห้อง</th><th>นักเรียน</th><th>ปกติ</th><th>เสี่ยง</th><th>มีปัญหา</th><th>ยังไม่ทำ</th></tr>
+    ${breakdown.map(b=>`<tr><td>${b.room}</td><td>${b.total}</td><td>${b.normal}</td>
+      <td style="color:var(--warn);font-weight:${b.risk?'700':'400'}">${b.risk}</td>
+      <td style="color:var(--risk);font-weight:${b.problem?'700':'400'}">${b.problem}</td>
+      <td>${b.notDone}</td></tr>`).join('')}
+  </table>`;
+}
+
 /* ---------- พิมพ์ ---------- */
 function printReport(id){
   const content = document.getElementById('reportContent').innerHTML;
@@ -538,13 +810,70 @@ function printSummary(){
   const y=document.getElementById('yearLabel').textContent;
   const statsHtml=document.getElementById('stats').innerHTML;
   const riskHtml=document.getElementById('riskBody').innerHTML;
+  const breakdown = roomBreakdown(DATA);
+  const modeLabel = ACTIVITY_MODE==='eq' ? ' (เฉพาะผล EQ)' : ACTIVITY_MODE==='sdq' ? ' (เฉพาะผล SDQ)' : ACTIVITY_MODE==='screening' ? ' (เฉพาะคัดกรองรายบุคคล)' : '';
+  const breakdownTitle = ACTIVITY_MODE==='eq' ? 'สรุปผล EQ แยกตามห้อง' : ACTIVITY_MODE==='screening' ? 'สรุปผลคัดกรองรายบุคคลแยกตามห้อง' : 'สรุปผล SDQ แยกตามห้อง';
   document.getElementById('printArea').innerHTML = `
-    <h1 style="font-family:Mitr">รายงานสรุปสำหรับผู้บริหาร</h1>
+    <h1 style="font-family:Mitr">รายงานสรุปสำหรับผู้บริหาร${modeLabel}</h1>
     <p class="sub" style="margin-bottom:4px">${document.getElementById('schoolName').textContent} · ${y}</p>
-    <p class="sub" style="margin-bottom:16px">พิมพ์เมื่อ ${new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})}</p>
+    <p class="sub" style="margin-bottom:16px">ภาพรวมทั้งโรงเรียน (ตามสิทธิ์ที่เข้าถึงได้) · พิมพ์เมื่อ ${new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})}</p>
     <div class="stats" style="margin-bottom:20px">${statsHtml}</div>
-    <h4>🚩 รายชื่อกลุ่มเสี่ยง เรียงตามความเร่งด่วน</h4>
+    <h4>${breakdownTitle}</h4>
+    ${breakdown.length ? roomBreakdownTable(breakdown) : '<p class="sub">ไม่มีข้อมูลห้อง</p>'}
+    <h4>${document.getElementById('riskHeading').textContent} (สูงสุด 15 คนแรก)</h4>
     <div class="risklist" style="border:none;padding:0">${riskHtml}</div>
+  `;
+  document.getElementById('printArea').style.display='block';
+  window.print();
+  document.getElementById('printArea').style.display='none';
+}
+
+function printRoom(){
+  const room = document.getElementById('fPrintRoom').value;
+  if(!room){ alert('ไม่มีห้องให้เลือกพิมพ์ (ยังไม่มีข้อมูลนักเรียนในห้องใดเลย)'); return; }
+  const rs = DATA.filter(x=>x.room===room).sort((a,b)=> (a.no||'')>(b.no||'')?1:-1);
+  const y = document.getElementById('yearLabel').textContent;
+  const modeLabel = ACTIVITY_MODE==='eq' ? ' (เฉพาะผล EQ)' : ACTIVITY_MODE==='sdq' ? ' (เฉพาะผล SDQ)' : ACTIVITY_MODE==='screening' ? ' (เฉพาะคัดกรองรายบุคคล)' : '';
+
+  let statsLine, theadCols, rowsHtml;
+  if(ACTIVITY_MODE==='screening'){
+    const done=rs.filter(x=>x.screening).length;
+    const redflag=rs.filter(x=>x.screening&&x.screening.redFlag).length;
+    const prob=rs.filter(x=>x.screening&&x.screening.overall==='มีปัญหา').length;
+    statsLine = `นักเรียนทั้งหมด ${rs.length} คน · กรอกคัดกรองแล้ว ${done} คน · Red Flag ${redflag} คน · มีปัญหา ${prob} คน`;
+    theadCols = `<th>เลขที่</th><th>เลขประจำตัว</th><th style="text-align:left">ชื่อ-สกุล</th><th>ผลรวม</th><th style="text-align:left">จุดที่ต้องดูแล</th>`;
+    rowsHtml = rs.map((x,i)=>{
+      const s=x.screening;
+      const areasText = s ? (s.areas&&s.areas.length? s.areas.join(', ') : (s.overall==='ปกติ'?'ไม่มี':'—')) : '—';
+      return `<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${x.name}</td><td>${screeningPill(s)}</td><td style="text-align:left;font-size:12px">${areasText}</td></tr>`;
+    }).join('');
+  } else if(ACTIVITY_MODE==='eq'){
+    const done=rs.filter(x=>x.eq).length;
+    const low=rs.filter(x=>x.eq&&x.eq!=='ปกติทุกด้าน').length;
+    statsLine = `นักเรียนทั้งหมด ${rs.length} คน · ทำแบบประเมิน EQ แล้ว ${done} คน · ต่ำกว่าเกณฑ์อย่างน้อย 1 ด้าน ${low} คน`;
+    theadCols = `<th>เลขที่</th><th>เลขประจำตัว</th><th style="text-align:left">ชื่อ-สกุล</th><th>ผล EQ</th>`;
+    rowsHtml = rs.map((x,i)=>`<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${x.name}</td>
+      <td>${x.eq?(x.eq==='ปกติทุกด้าน'?'<span class="pill p-ok">ปกติทุกด้าน</span>':`<span class="pill p-warn">${x.eq}</span>`):'<span class="pill p-none">ยังไม่ทำ</span>'}</td></tr>`).join('');
+  } else {
+    const done = rs.filter(x=>x.sdq).length;
+    const risk = rs.filter(x=>x.sdq&&x.sdq.total==='เสี่ยง').length;
+    const prob = rs.filter(x=>x.sdq&&x.sdq.total==='มีปัญหา').length;
+    statsLine = `นักเรียนทั้งหมด ${rs.length} คน · ทำแบบประเมินแล้ว ${done} คน · เสี่ยง ${risk} คน · มีปัญหา ${prob} คน`;
+    theadCols = `<th>เลขที่</th><th>เลขประจำตัว</th><th style="text-align:left">ชื่อ-สกุล</th><th>ผล SDQ</th><th style="text-align:left">ด้านที่ต้องดูแล</th>` + (ACTIVITY_MODE==='all' ? `<th>EQ</th>` : '');
+    rowsHtml = rs.map((x,i)=>`<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${x.name}</td>
+      <td>${pill(x.sdq&&x.sdq.total)}</td>
+      <td style="text-align:left;font-size:12px">${problemAreas(x.sdq).replace(/<[^>]+>/g,'')}</td>
+      ${ACTIVITY_MODE==='all' ? `<td>${x.eq?(x.eq==='ปกติทุกด้าน'?'<span class="pill p-ok">ปกติทุกด้าน</span>':`<span class="pill p-warn">${x.eq}</span>`):'<span class="pill p-none">ยังไม่ทำ</span>'}</td>` : ''}</tr>`).join('');
+  }
+
+  document.getElementById('printArea').innerHTML = `
+    <h1 style="font-family:Mitr">รายงานคัดกรองนักเรียน ห้อง ${room}${modeLabel}</h1>
+    <p class="sub" style="margin-bottom:4px">${document.getElementById('schoolName').textContent} · ปีการศึกษา ${y.replace('ปีการศึกษา ','')}</p>
+    <p class="sub" style="margin-bottom:16px">${statsLine} · พิมพ์เมื่อ ${new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})}</p>
+    <table class="trend-table">
+      <tr>${theadCols}</tr>
+      ${rowsHtml || `<tr><td colspan="6">ไม่มีนักเรียนในห้องนี้</td></tr>`}
+    </table>
   `;
   document.getElementById('printArea').style.display='block';
   window.print();
@@ -572,7 +901,8 @@ async function openScreeningForm(studentId){
   document.getElementById('screenContent').innerHTML = 'กำลังโหลด...';
   try{
     if(!SCREEN_SCHEMA){
-      const s = await api({action:'getScreeningSchema'});
+      const s = await api({action:'getScreeningSchema', token:TOKEN});
+      if(s.expired){ closeScreeningForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
       if(!s.ok){ document.getElementById('screenContent').innerHTML = `<div class="alert err" style="display:block">${s.message||'โหลดแบบฟอร์มไม่สำเร็จ'}</div>`; return; }
       SCREEN_SCHEMA = s.sections;
       REDFLAG_OPTS = s.redFlagOptions;
@@ -696,6 +1026,175 @@ async function saveScreeningForm(studentId, semester){
   }catch(e){
     document.getElementById('screenErr').textContent = 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'; document.getElementById('screenErr').className='alert err';
   }finally{ btn.disabled=false; btn.textContent='บันทึกแบบคัดกรอง'; }
+}
+
+/* ---------- ข้อมูลรู้จักนักเรียน/เยี่ยมบ้าน (เฟส 6) ---------- */
+let HV_SCHEMA = null;
+let CURRENT_HV_ID = null;
+
+async function openHomeVisitForm(studentId){
+  CURRENT_HV_ID = studentId;
+  document.getElementById('hvOverlay').classList.remove('hidden');
+  document.getElementById('hvContent').innerHTML = 'กำลังโหลด...';
+  try{
+    if(!HV_SCHEMA){
+      const s = await api({action:'getHomeVisitSchema', token:TOKEN});
+      if(s.expired){ closeHomeVisitForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
+      if(!s.ok){ document.getElementById('hvContent').innerHTML = `<div class="alert err" style="display:block">${s.message||'โหลดแบบฟอร์มไม่สำเร็จ'}</div>`; return; }
+      HV_SCHEMA = s.fields;
+    }
+    const semester = prompt('ภาคเรียนที่ (1 หรือ 2)', '1') || '1';
+    const existing = await api({action:'getHomeVisit', token:TOKEN, studentId, semester});
+    if(existing.expired){ closeHomeVisitForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
+    if(!existing.ok){ document.getElementById('hvContent').innerHTML = `<div class="alert err" style="display:block">${existing.message}</div>`; return; }
+    renderHomeVisitForm(studentId, semester, existing);
+  }catch(e){ document.getElementById('hvContent').innerHTML = '<div class="alert err" style="display:block">โหลดแบบฟอร์มไม่สำเร็จ</div>'; }
+}
+function closeHomeVisitForm(){ document.getElementById('hvOverlay').classList.add('hidden'); }
+
+function renderHomeVisitForm(studentId, semester, data){
+  const answers = data ? data.answers : {};
+  let html = `<h2>🏠 ข้อมูลการรู้จักนักเรียนรายบุคคล (เยี่ยมบ้าน)</h2><div class="sub">เลขประจำตัว ${studentId} · ภาคเรียนที่ ${semester}</div>`;
+  html += data && data.exists
+    ? `<div class="sub" style="margin-top:4px">🔄 นี่คือข้อมูลที่เคยบันทึกไว้ แก้ไขแล้วกดบันทึกเพื่ออัปเดต</div>`
+    : `<div class="sub" style="margin-top:4px;color:var(--accent)">✨ ดึงข้อมูลบางส่วน (ที่อยู่ ผู้ปกครอง การเดินทาง ฯลฯ) มาให้จากข้อมูลรายปีแล้ว กรอกส่วนที่เหลือให้ครบ</div>`;
+
+  let lastSection = null;
+  HV_SCHEMA.forEach(f=>{
+    if(f.section !== lastSection){
+      if(lastSection!==null) html += `</div>`;
+      html += `<div class="scr-sec"><h4>${f.section}</h4>`;
+      lastSection = f.section;
+    }
+    html += hvField(f, answers[f.id]);
+  });
+  html += `</div>`;
+
+  html += `<div class="alert err" id="hvErr"></div>
+    <button class="scr-save" id="btnHvSave" onclick="saveHomeVisitForm('${studentId}','${semester}')">บันทึกข้อมูล</button>`;
+  if(data && data.savedAt) html += `<div class="sub" style="text-align:center;margin-top:8px">บันทึกล่าสุดโดย ${fld2(data.savedBy)} เมื่อ ${new Date(data.savedAt).toLocaleString('th-TH')}</div>`;
+
+  document.getElementById('hvContent').innerHTML = html;
+}
+
+function hvField(f, value){
+  const esc = s => String(s===undefined||s===null?'':s).replace(/"/g,'&quot;');
+  const label = f.label ? `<label>${f.label}</label>` : '';
+  if(f.type==='text' || f.type==='number'){
+    return `<div class="hv-field">${label}<input type="${f.type}" data-hv="${f.id}" value="${esc(value)}"></div>`;
+  }
+  if(f.type==='textarea'){
+    return `<div class="hv-field">${label}<textarea data-hv="${f.id}">${esc(value)}</textarea></div>`;
+  }
+  if(f.type==='radio'){
+    return `<div class="hv-field">${label}
+      ${f.options.map(opt=>`<label class="scr-check"><input type="radio" name="hv_${f.id}" value="${esc(opt)}" ${value===opt?'checked':''}><span>${opt}</span></label>`).join('')}
+    </div>`;
+  }
+  if(f.type==='checkbox'){
+    const arr = Array.isArray(value)?value:[];
+    return `<div class="hv-field">${label}
+      ${f.options.map(opt=>`<label class="scr-check"><input type="checkbox" data-hvcheck="${f.id}" value="${esc(opt)}" ${arr.indexOf(opt)!==-1?'checked':''}><span>${opt}</span></label>`).join('')}
+    </div>`;
+  }
+  if(f.type==='radio_sub'){
+    const v = value && typeof value==='object' ? value : {main:'',sub:[]};
+    let html = `<div class="hv-field">${label}`;
+    f.options.forEach(opt=>{
+      const checked = v.main===opt.label ? 'checked':'';
+      html += `<label class="scr-check"><input type="radio" name="hv_${f.id}" value="${esc(opt.label)}" ${checked} onchange="toggleHvSub('${f.id}')"><span>${opt.label}</span></label>`;
+      if(opt.subOptions){
+        const show = v.main===opt.label ? 'block' : 'none';
+        html += `<div class="hv-subgroup" data-hvsubgroup="${f.id}::${esc(opt.label)}" style="display:${show}">` +
+          opt.subOptions.map(so=>`<label class="scr-check" style="margin-left:20px"><input type="checkbox" data-hvsubcheck="${f.id}" value="${esc(so)}" ${v.sub&&v.sub.indexOf(so)!==-1?'checked':''}><span>${so}</span></label>`).join('') +
+          `</div>`;
+      }
+    });
+    html += `</div>`;
+    return html;
+  }
+  if(f.type==='photo'){
+    const url = value || '';
+    return `<div class="hv-field">${label}
+      <div class="hv-photo-box" id="hvphotobox_${f.id}">
+        ${url?`<img src="${url}"><div class="hv-photo-status">อัปโหลดแล้ว · <a href="${url}" target="_blank">เปิดดูรูปเต็ม</a></div>`:'<div class="hv-photo-status">ยังไม่มีรูป</div>'}
+        <input type="file" accept="image/*" capture="environment" style="margin-top:8px" onchange="handlePhotoUpload(this,'${f.id}')">
+        <input type="hidden" data-hv="${f.id}" value="${esc(url)}">
+      </div>
+    </div>`;
+  }
+  return '';
+}
+
+function toggleHvSub(fieldId){
+  const checked = document.querySelector(`input[name="hv_${fieldId}"]:checked`);
+  document.querySelectorAll(`[data-hvsubgroup^="${fieldId}::"]`).forEach(el=>el.style.display='none');
+  if(checked){
+    const el = document.querySelector(`[data-hvsubgroup="${fieldId}::${checked.value}"]`);
+    if(el) el.style.display='block';
+  }
+}
+
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=> resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handlePhotoUpload(inputEl, fieldId){
+  const file = inputEl.files[0];
+  if(!file) return;
+  const box = document.getElementById('hvphotobox_'+fieldId);
+  const statusEl = box.querySelector('.hv-photo-status');
+  statusEl.textContent = 'กำลังอัปโหลด...';
+  try{
+    const base64 = await fileToBase64(file);
+    const r = await api({action:'uploadHomeVisitPhoto', token:TOKEN, studentId:CURRENT_HV_ID, slot:fieldId, base64, mimeType:file.type});
+    if(r.expired){ closeHomeVisitForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
+    if(!r.ok){ statusEl.textContent = 'อัปโหลดไม่สำเร็จ: '+r.message; return; }
+    box.querySelector(`input[data-hv="${fieldId}"]`).value = r.url;
+    statusEl.innerHTML = `อัปโหลดแล้ว · <a href="${r.url}" target="_blank">เปิดดูรูปเต็ม</a>`;
+    let img = box.querySelector('img');
+    if(!img){ img = document.createElement('img'); box.insertBefore(img, box.firstChild); }
+    img.src = r.url;
+  }catch(e){ statusEl.textContent = 'อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง'; }
+}
+
+async function saveHomeVisitForm(studentId, semester){
+  const answers = {};
+  HV_SCHEMA.forEach(f=>{
+    if(f.type==='checkbox'){
+      answers[f.id] = [...document.querySelectorAll(`input[data-hvcheck="${f.id}"]:checked`)].map(el=>el.value);
+    } else if(f.type==='radio_sub'){
+      const checked = document.querySelector(`input[name="hv_${f.id}"]:checked`);
+      const sub = checked ? [...document.querySelectorAll(`input[data-hvsubcheck="${f.id}"]:checked`)].map(el=>el.value) : [];
+      answers[f.id] = { main: checked?checked.value:'', sub };
+    } else if(f.type==='radio'){
+      const checked = document.querySelector(`input[name="hv_${f.id}"]:checked`);
+      answers[f.id] = checked?checked.value:'';
+    } else {
+      const el = document.querySelector(`[data-hv="${f.id}"]`);
+      answers[f.id] = el?el.value:'';
+    }
+  });
+
+  const btn = document.getElementById('btnHvSave');
+  btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+  document.getElementById('hvErr').className = 'alert';
+  try{
+    const r = await api({action:'saveHomeVisit', token:TOKEN, studentId, semester, answers});
+    if(!r.ok){
+      if(r.expired){ closeHomeVisitForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
+      document.getElementById('hvErr').textContent = r.message; document.getElementById('hvErr').className='alert err'; return;
+    }
+    closeHomeVisitForm();
+    openReport(studentId);
+  }catch(e){
+    document.getElementById('hvErr').textContent = 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'; document.getElementById('hvErr').className='alert err';
+  }finally{ btn.disabled=false; btn.textContent='บันทึกข้อมูล'; }
 }
 
 /* ถ้ามี token ค้างอยู่ ลองเข้าเลย */

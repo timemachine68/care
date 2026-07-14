@@ -52,8 +52,11 @@ button{font-family:'Mitr';font-weight:500;font-size:16px;cursor:pointer;border:n
 .tools{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:center}
 .tools select,.tools input{width:auto;min-width:150px;padding:8px 11px;font-size:14px}
 .col-screening{display:none}
+.col-homevisit{display:none}
 .tablewrap.mode-screening .col-screening{display:table-cell}
-.tablewrap.mode-screening .col-sdq,.tablewrap.mode-screening .col-eq{display:none}
+.tablewrap.mode-screening .col-sdq,.tablewrap.mode-screening .col-eq,.tablewrap.mode-screening .col-homevisit{display:none}
+.tablewrap.mode-homevisit .col-homevisit{display:table-cell}
+.tablewrap.mode-homevisit .col-sdq,.tablewrap.mode-homevisit .col-eq,.tablewrap.mode-homevisit .col-screening{display:none}
 .tablewrap.mode-sdq .col-eq{display:none}
 .tablewrap.mode-eq .col-sdq{display:none}
 .tablewrap{background:var(--card);border:1.5px solid var(--line);border-radius:var(--radius);overflow:auto}
@@ -110,7 +113,8 @@ tbody tr{cursor:pointer}
 .scr-sec{border-top:1.5px dashed var(--line);padding-top:14px;margin-top:16px;min-width:0}
 .scr-sec h4{font-family:'Mitr';font-size:15px;margin-bottom:8px;overflow-wrap:anywhere;word-break:break-word}
 .scr-group{font-size:12px;font-weight:700;color:var(--ink-soft);margin:8px 0 4px;overflow-wrap:anywhere;word-break:break-word}
-.scr-check{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;padding:4px 0;cursor:pointer;width:100%;box-sizing:border-box}
+.scr-check{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;padding:9px 0;margin-bottom:2px;cursor:pointer;width:100%;box-sizing:border-box;border-bottom:1px solid #F1F4F1}
+.scr-check:last-child{border-bottom:none}
 .scr-check input{margin-top:3px;flex:0 0 auto;width:auto}
 .scr-check span{flex:1 1 0%;min-width:0;overflow-wrap:anywhere;word-break:break-word;line-height:1.4}
 .scr-comment{width:100%;border:1.5px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:13.5px;margin-top:6px;resize:vertical;min-height:50px}
@@ -207,7 +211,7 @@ tbody tr{cursor:pointer}
   </div>
 
   <div class="tools">
-    <button class="btn-sm" onclick="printSummary()">🖨️ พิมพ์ภาพรวมทั้งโรงเรียน (ผอ.)</button>
+    <button class="btn-sm" id="btnPrintFull" onclick="printSummaryFull()">🖨️ พิมพ์ภาพรวมทั้งโรงเรียน (ผอ.)</button>
     <select id="fPrintRoom" style="min-width:170px"></select>
     <button class="btn-sm" onclick="printRoom()">🖨️ พิมพ์รายงานห้องนี้</button>
   </div>
@@ -218,6 +222,7 @@ tbody tr{cursor:pointer}
       <option value="sdq">เฉพาะ SDQ</option>
       <option value="eq">เฉพาะ EQ</option>
       <option value="screening">เฉพาะคัดกรองรายบุคคล (ข้อ 5-9)</option>
+      <option value="homevisit">เฉพาะเยี่ยมบ้าน</option>
     </select>
     <select id="fRoom" onchange="render()"><option value="">ทุกห้อง</option></select>
     <select id="fResult" onchange="render()">
@@ -236,6 +241,7 @@ tbody tr{cursor:pointer}
         <th>ห้อง</th><th>เลขที่</th><th>เลขประจำตัว</th><th>ชื่อ-สกุล</th>
         <th class="col-sdq">SDQ รวม</th><th class="col-sdq">ด้านที่ต้องดูแล (SDQ)</th><th class="col-eq">EQ</th>
         <th class="col-screening">คัดกรองรายบุคคล</th><th class="col-screening">จุดที่ต้องดูแล</th>
+        <th class="col-homevisit">เยี่ยมบ้าน</th><th class="col-homevisit">ข้อสังเกต</th>
       </tr></thead>
       <tbody id="tbody"></tbody>
     </table>
@@ -352,8 +358,9 @@ function problemAreas(s){
   return bad.length?bad.join(', '):'<span class="sub">ไม่มี</span>';
 }
 
-let ACTIVITY_MODE = 'all'; // 'all' | 'sdq' | 'eq' | 'screening'
+let ACTIVITY_MODE = 'all'; // 'all' | 'sdq' | 'eq' | 'screening' | 'homevisit'
 let SCREEN_LOADED = false;
+let HOMEVISIT_LOADED = false;
 
 async function changeActivity(){
   ACTIVITY_MODE = document.getElementById('fActivity').value;
@@ -362,16 +369,30 @@ async function changeActivity(){
   buildResultOptions();
 
   if(ACTIVITY_MODE==='screening' && !SCREEN_LOADED){
-    document.getElementById('tbody').innerHTML = '<tr><td colspan="9">กำลังโหลดข้อมูลคัดกรองรายบุคคล...</td></tr>';
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="11">กำลังโหลดข้อมูลคัดกรองรายบุคคล...</td></tr>';
     try{
       const r = await api({action:'getScreeningOverview', token:TOKEN});
       if(r.expired){ logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
-      if(!r.ok){ document.getElementById('tbody').innerHTML = `<tr><td colspan="9">${r.message}</td></tr>`; return; }
+      if(!r.ok){ document.getElementById('tbody').innerHTML = `<tr><td colspan="11">${r.message}</td></tr>`; return; }
       const map={}; r.rows.forEach(x=>map[x.id]=x.screening);
       DATA.forEach(x=>{ x.screening = map[x.id]||null; });
       SCREEN_LOADED = true;
     }catch(e){
-      document.getElementById('tbody').innerHTML = '<tr><td colspan="9">โหลดข้อมูลคัดกรองรายบุคคลไม่สำเร็จ</td></tr>';
+      document.getElementById('tbody').innerHTML = '<tr><td colspan="11">โหลดข้อมูลคัดกรองรายบุคคลไม่สำเร็จ</td></tr>';
+      return;
+    }
+  }
+  if(ACTIVITY_MODE==='homevisit' && !HOMEVISIT_LOADED){
+    document.getElementById('tbody').innerHTML = '<tr><td colspan="11">กำลังโหลดข้อมูลเยี่ยมบ้าน...</td></tr>';
+    try{
+      const r = await api({action:'getHomeVisitOverview', token:TOKEN});
+      if(r.expired){ logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
+      if(!r.ok){ document.getElementById('tbody').innerHTML = `<tr><td colspan="11">${r.message}</td></tr>`; return; }
+      const map={}; r.rows.forEach(x=>map[x.id]=x.homeVisit);
+      DATA.forEach(x=>{ x.homeVisit = map[x.id]||null; });
+      HOMEVISIT_LOADED = true;
+    }catch(e){
+      document.getElementById('tbody').innerHTML = '<tr><td colspan="11">โหลดข้อมูลเยี่ยมบ้านไม่สำเร็จ</td></tr>';
       return;
     }
   }
@@ -393,6 +414,11 @@ function buildResultOptions(){
       <option value="scr-problem">เฉพาะ มีปัญหา</option>
       <option value="scr-risk">เฉพาะ เสี่ยง</option>
       <option value="scr-none">ยังไม่กรอกแบบคัดกรอง</option>`;
+  } else if(ACTIVITY_MODE==='homevisit'){
+    sel.innerHTML = `
+      <option value="">ทุกสถานะ</option>
+      <option value="hv-concern">เฉพาะมีข้อสังเกต (ด้อยโอกาส/พิการ/ข้อกังวล)</option>
+      <option value="hv-none">ยังไม่ได้เยี่ยมบ้าน</option>`;
   } else {
     sel.innerHTML = `
       <option value="">ผล SDQ ทั้งหมด</option>
@@ -419,6 +445,9 @@ function render(){
       else if(res==='scr-redflag'){ if(!x.screening||!x.screening.redFlag) return false; }
       else if(res==='scr-problem'){ if(!x.screening||x.screening.overall!=='มีปัญหา') return false; }
       else if(res==='scr-risk'){ if(!x.screening||x.screening.overall!=='เสี่ยง') return false; }
+    } else if(ACTIVITY_MODE==='homevisit'){
+      if(res==='hv-none'){ if(x.homeVisit) return false; }
+      else if(res==='hv-concern'){ if(!x.homeVisit||!(x.homeVisit.hasDisadvantage||x.homeVisit.hasDisability||x.homeVisit.hasConcern)) return false; }
     } else {
       if(res==='ยังไม่ทำ'){ if(x.sdq) return false; }
       else if(res){ if(!x.sdq || x.sdq.total!==res) return false; }
@@ -446,6 +475,15 @@ function render(){
       <div class="stat s-ok"><div class="n">${done}</div><div class="l">กรอกคัดกรองแล้ว</div></div>
       <div class="stat s-risk"><div class="n">${redflag}</div><div class="l">Red Flag</div></div>
       <div class="stat s-risk"><div class="n">${prob}</div><div class="l">มีปัญหาอย่างน้อย 1 ด้าน</div></div>`;
+  } else if(ACTIVITY_MODE==='homevisit'){
+    const done=DATA.filter(x=>x.homeVisit).length;
+    const concern=DATA.filter(x=>x.homeVisit&&(x.homeVisit.hasDisadvantage||x.homeVisit.hasDisability||x.homeVisit.hasConcern)).length;
+    const notDone=DATA.length-done;
+    document.getElementById('stats').innerHTML=`
+      <div class="stat"><div class="n">${DATA.length}</div><div class="l">นักเรียนทั้งหมด</div></div>
+      <div class="stat s-ok"><div class="n">${done}</div><div class="l">เยี่ยมบ้านแล้ว</div></div>
+      <div class="stat s-warn"><div class="n">${concern}</div><div class="l">มีข้อสังเกต</div></div>
+      <div class="stat s-risk"><div class="n">${notDone}</div><div class="l">ยังไม่ได้เยี่ยมบ้าน</div></div>`;
   } else {
     const done=DATA.filter(x=>x.sdq).length;
     const risk=DATA.filter(x=>x.sdq&&x.sdq.total==='เสี่ยง').length;
@@ -465,7 +503,9 @@ function render(){
       <td class="col-eq">${x.eq?(x.eq==='ปกติทุกด้าน'?'<span class="pill p-ok">ปกติทุกด้าน</span>':`<span class="pill p-warn">${x.eq}</span>`):'<span class="pill p-none">ยังไม่ทำ</span>'}</td>
       <td class="col-screening">${screeningPill(x.screening)}</td>
       <td class="col-screening" style="text-align:left;font-size:12px">${x.screening&&x.screening.areas&&x.screening.areas.length?x.screening.areas.join(', '):'<span class="sub">—</span>'}</td>
-    </tr>`).join('') : '<tr><td colspan="9">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';
+      <td class="col-homevisit">${homeVisitPill(x.homeVisit)}</td>
+      <td class="col-homevisit" style="text-align:left;font-size:12px">${x.homeVisit&&x.homeVisit.flags&&x.homeVisit.flags.length?x.homeVisit.flags.join(', '):'<span class="sub">—</span>'}</td>
+    </tr>`).join('') : '<tr><td colspan="11">ไม่พบข้อมูลตามเงื่อนไข</td></tr>';
 
   drawCharts();
   renderRiskList();
@@ -475,6 +515,11 @@ function screeningPill(s){
   if(s.redFlag) return '<span class="pill p-risk">🚩 Red Flag</span>';
   if(s.overall==='ยังไม่ระบุ') return '<span class="pill p-none">ยังไม่ระบุ</span>';
   return pill(s.overall);
+}
+function homeVisitPill(hv){
+  if(!hv || !hv.visited) return '<span class="pill p-none">ยังไม่เยี่ยม</span>';
+  if(hv.hasDisadvantage || hv.hasDisability || hv.hasConcern) return '<span class="pill p-warn">มีข้อสังเกต</span>';
+  return '<span class="pill p-ok">เยี่ยมแล้ว</span>';
 }
 
 /* ---------- กราฟภาพรวม ---------- */
@@ -507,6 +552,30 @@ function drawCharts(){
       {label:'มีปัญหา',data:probByRoom,backgroundColor:'#DBA02E'}
     ]},options:{responsive:true,maintainAspectRatio:false,
       scales:{x:{stacked:true,ticks:{font:{family:'Anuphan',size:11}}},y:{stacked:true,beginAtZero:true,ticks:{stepSize:1}}},
+      plugins:{legend:{position:'bottom',labels:{font:{family:'Anuphan',size:12}}}}}});
+    return;
+  }
+
+  if(ACTIVITY_MODE==='homevisit'){
+    document.getElementById('donutTitle').textContent = 'สัดส่วนการเยี่ยมบ้าน';
+    document.getElementById('roomChartTitle').textContent = 'จำนวนที่ยังไม่ได้เยี่ยมบ้าน แยกตามห้อง';
+
+    const statusCount={'เยี่ยมแล้ว':0,'มีข้อสังเกต':0,'ยังไม่เยี่ยม':0};
+    DATA.forEach(x=>{
+      if(!x.homeVisit || !x.homeVisit.visited) statusCount['ยังไม่เยี่ยม']++;
+      else if(x.homeVisit.hasDisadvantage||x.homeVisit.hasDisability||x.homeVisit.hasConcern) statusCount['มีข้อสังเกต']++;
+      else statusCount['เยี่ยมแล้ว']++;
+    });
+    donutChart=new Chart(ctx1,{type:'doughnut',data:{
+      labels:Object.keys(statusCount),
+      datasets:[{data:Object.values(statusCount),backgroundColor:['#3E9B6E','#DBA02E','#C7D3DE'],borderWidth:0}]
+    },options:{plugins:{legend:{position:'bottom',labels:{font:{family:'Anuphan',size:12}}}}}});
+
+    const notDoneByRoom=rooms.map(r=>DATA.filter(x=>x.room===r&&(!x.homeVisit||!x.homeVisit.visited)).length);
+    roomChart=new Chart(ctx2,{type:'bar',data:{labels:rooms,datasets:[
+      {label:'ยังไม่ได้เยี่ยมบ้าน',data:notDoneByRoom,backgroundColor:'#D65A4A'}
+    ]},options:{responsive:true,maintainAspectRatio:false,
+      scales:{x:{ticks:{font:{family:'Anuphan',size:11}}},y:{beginAtZero:true,ticks:{stepSize:1}}},
       plugins:{legend:{position:'bottom',labels:{font:{family:'Anuphan',size:12}}}}}});
     return;
   }
@@ -567,6 +636,14 @@ function urgencyScore(x){
     s += (x.screening.areas?x.screening.areas.length:0)*3;
     return s;
   }
+  if(ACTIVITY_MODE==='homevisit'){
+    if(!x.homeVisit || !x.homeVisit.visited) return 60; // ยังไม่ได้เยี่ยมบ้าน ควรติดตาม
+    let s = 0;
+    if(x.homeVisit.hasConcern) s += 30;
+    if(x.homeVisit.hasDisadvantage) s += 20;
+    if(x.homeVisit.hasDisability) s += 20;
+    return s;
+  }
   if(ACTIVITY_MODE==='eq'){
     if(!x.eq) return -1;
     if(x.eq==='ปกติทุกด้าน') return 0;
@@ -584,6 +661,7 @@ function renderRiskList(){
   heading.textContent = ACTIVITY_MODE==='eq' ? '🚩 รายชื่อกลุ่มเสี่ยง (EQ) เรียงตามความเร่งด่วน'
     : ACTIVITY_MODE==='sdq' ? '🚩 รายชื่อกลุ่มเสี่ยง (SDQ) เรียงตามความเร่งด่วน'
     : ACTIVITY_MODE==='screening' ? '🚩 รายชื่อกลุ่มเสี่ยง (คัดกรองรายบุคคล) เรียงตามความเร่งด่วน'
+    : ACTIVITY_MODE==='homevisit' ? '🏠 รายชื่อที่ควรติดตาม (เยี่ยมบ้าน) เรียงตามความเร่งด่วน'
     : '🚩 รายชื่อกลุ่มเสี่ยง เรียงตามความเร่งด่วน';
 
   const rows=DATA.map(x=>({...x,score:urgencyScore(x)}))
@@ -597,6 +675,9 @@ function renderRiskList(){
       const s=x.screening;
       areas = (s.redFlag?'🚩 Red Flag':'') + (s.areas&&s.areas.length ? (s.redFlag?' · ':'')+s.areas.join(', ') : '');
       pillHtml = s.redFlag ? '<span class="pill p-risk">Red Flag</span>' : screeningPill(s);
+    } else if(ACTIVITY_MODE==='homevisit'){
+      if(!x.homeVisit || !x.homeVisit.visited){ areas = 'ยังไม่มีการบันทึกเยี่ยมบ้านในปีนี้'; pillHtml = '<span class="pill p-none">ยังไม่เยี่ยม</span>'; }
+      else { areas = x.homeVisit.flags.join(', '); pillHtml = homeVisitPill(x.homeVisit); }
     } else if(ACTIVITY_MODE==='eq'){
       areas = x.eq && x.eq!=='ปกติทุกด้าน' ? x.eq.replace('ต่ำกว่าเกณฑ์: ','') : '';
       pillHtml = x.eq==='ปกติทุกด้าน' ? '<span class="pill p-ok">ปกติทุกด้าน</span>' : '<span class="pill p-warn">ต่ำกว่าเกณฑ์</span>';
@@ -748,6 +829,15 @@ function roomBreakdown(data){
         notDone: rs.filter(x=>!x.screening).length };
     });
   }
+  if(ACTIVITY_MODE==='homevisit'){
+    return rooms.map(room=>{
+      const rs=data.filter(x=>x.room===room);
+      return { room, total: rs.length,
+        visited: rs.filter(x=>x.homeVisit&&x.homeVisit.visited).length,
+        concern: rs.filter(x=>x.homeVisit&&(x.homeVisit.hasDisadvantage||x.homeVisit.hasDisability||x.homeVisit.hasConcern)).length,
+        notDone: rs.filter(x=>!x.homeVisit||!x.homeVisit.visited).length };
+    });
+  }
   if(ACTIVITY_MODE==='eq'){
     return rooms.map(room=>{
       const rs=data.filter(x=>x.room===room);
@@ -778,6 +868,14 @@ function roomBreakdownTable(breakdown){
         <td style="color:var(--risk);font-weight:${b.problem?'700':'400'}">${b.problem}</td>
         <td style="color:var(--warn);font-weight:${b.risk?'700':'400'}">${b.risk}</td>
         <td>${b.notDone}</td></tr>`).join('')}
+    </table>`;
+  }
+  if(ACTIVITY_MODE==='homevisit'){
+    return `<table class="trend-table" style="margin-bottom:20px">
+      <tr><th>ห้อง</th><th>นักเรียน</th><th>เยี่ยมแล้ว</th><th>มีข้อสังเกต</th><th>ยังไม่เยี่ยม</th></tr>
+      ${breakdown.map(b=>`<tr><td>${b.room}</td><td>${b.total}</td><td>${b.visited}</td>
+        <td style="color:var(--warn);font-weight:${b.concern?'700':'400'}">${b.concern}</td>
+        <td style="color:var(--risk);font-weight:${b.notDone?'700':'400'}">${b.notDone}</td></tr>`).join('')}
     </table>`;
   }
   if(ACTIVITY_MODE==='eq'){
@@ -811,8 +909,8 @@ function printSummary(){
   const statsHtml=document.getElementById('stats').innerHTML;
   const riskHtml=document.getElementById('riskBody').innerHTML;
   const breakdown = roomBreakdown(DATA);
-  const modeLabel = ACTIVITY_MODE==='eq' ? ' (เฉพาะผล EQ)' : ACTIVITY_MODE==='sdq' ? ' (เฉพาะผล SDQ)' : ACTIVITY_MODE==='screening' ? ' (เฉพาะคัดกรองรายบุคคล)' : '';
-  const breakdownTitle = ACTIVITY_MODE==='eq' ? 'สรุปผล EQ แยกตามห้อง' : ACTIVITY_MODE==='screening' ? 'สรุปผลคัดกรองรายบุคคลแยกตามห้อง' : 'สรุปผล SDQ แยกตามห้อง';
+  const modeLabel = ACTIVITY_MODE==='eq' ? ' (เฉพาะผล EQ)' : ACTIVITY_MODE==='sdq' ? ' (เฉพาะผล SDQ)' : ACTIVITY_MODE==='screening' ? ' (เฉพาะคัดกรองรายบุคคล)' : ACTIVITY_MODE==='homevisit' ? ' (เฉพาะเยี่ยมบ้าน)' : '';
+  const breakdownTitle = ACTIVITY_MODE==='eq' ? 'สรุปผล EQ แยกตามห้อง' : ACTIVITY_MODE==='screening' ? 'สรุปผลคัดกรองรายบุคคลแยกตามห้อง' : ACTIVITY_MODE==='homevisit' ? 'สรุปการเยี่ยมบ้านแยกตามห้อง' : 'สรุปผล SDQ แยกตามห้อง';
   document.getElementById('printArea').innerHTML = `
     <h1 style="font-family:Mitr">รายงานสรุปสำหรับผู้บริหาร${modeLabel}</h1>
     <p class="sub" style="margin-bottom:4px">${document.getElementById('schoolName').textContent} · ${y}</p>
@@ -828,12 +926,135 @@ function printSummary(){
   document.getElementById('printArea').style.display='none';
 }
 
+/* รายงานสำหรับผู้บริหาร — รวมทุกกิจกรรมเสมอ ไม่ขึ้นกับโหมดที่เลือกอยู่บนจอ */
+async function printSummaryFull(){
+  const btn = document.getElementById('btnPrintFull');
+  const originalText = btn.textContent;
+  btn.disabled = true; btn.textContent = 'กำลังเตรียมข้อมูล...';
+
+  if(!SCREEN_LOADED){
+    try{
+      const r = await api({action:'getScreeningOverview', token:TOKEN});
+      if(r.ok){ const map={}; r.rows.forEach(x=>map[x.id]=x.screening); DATA.forEach(x=>{ x.screening = map[x.id]||null; }); SCREEN_LOADED=true; }
+    }catch(e){}
+  }
+  if(!HOMEVISIT_LOADED){
+    try{
+      const r = await api({action:'getHomeVisitOverview', token:TOKEN});
+      if(r.ok){ const map={}; r.rows.forEach(x=>map[x.id]=x.homeVisit); DATA.forEach(x=>{ x.homeVisit = map[x.id]||null; }); HOMEVISIT_LOADED=true; }
+    }catch(e){}
+  }
+  btn.disabled = false; btn.textContent = originalText;
+
+  const rooms=[...new Set(DATA.map(x=>x.room).filter(x=>x!=='—'))].sort();
+
+  const sdqBreak = rooms.map(r=>{
+    const rs=DATA.filter(x=>x.room===r);
+    return {room:r,total:rs.length,
+      normal:rs.filter(x=>x.sdq&&x.sdq.total==='ปกติ').length,
+      risk:rs.filter(x=>x.sdq&&x.sdq.total==='เสี่ยง').length,
+      problem:rs.filter(x=>x.sdq&&x.sdq.total==='มีปัญหา').length,
+      notDone:rs.filter(x=>!x.sdq).length};
+  });
+  const eqBreak = rooms.map(r=>{
+    const rs=DATA.filter(x=>x.room===r);
+    return {room:r,total:rs.length,
+      ok:rs.filter(x=>x.eq==='ปกติทุกด้าน').length,
+      low:rs.filter(x=>x.eq&&x.eq!=='ปกติทุกด้าน').length,
+      notDone:rs.filter(x=>!x.eq).length};
+  });
+  const scrBreak = rooms.map(r=>{
+    const rs=DATA.filter(x=>x.room===r);
+    return {room:r,total:rs.length,
+      redflag:rs.filter(x=>x.screening&&x.screening.redFlag).length,
+      problem:rs.filter(x=>x.screening&&x.screening.overall==='มีปัญหา').length,
+      risk:rs.filter(x=>x.screening&&x.screening.overall==='เสี่ยง').length,
+      notDone:rs.filter(x=>!x.screening).length};
+  });
+  const hvBreak = rooms.map(r=>{
+    const rs=DATA.filter(x=>x.room===r);
+    return {room:r,total:rs.length,
+      visited:rs.filter(x=>x.homeVisit&&x.homeVisit.visited).length,
+      concern:rs.filter(x=>x.homeVisit&&(x.homeVisit.hasDisadvantage||x.homeVisit.hasDisability||x.homeVisit.hasConcern)).length,
+      notDone:rs.filter(x=>!x.homeVisit||!x.homeVisit.visited).length};
+  });
+
+  const mkTable = (headers, rowsArr) => `<table class="trend-table" style="margin-bottom:18px">
+    <tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr>
+    ${rowsArr.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join('')}
+  </table>`;
+
+  const sdqTable = mkTable(['ห้อง','นักเรียน','ปกติ','เสี่ยง','มีปัญหา','ยังไม่ทำ'],
+    sdqBreak.map(b=>[b.room,b.total,b.normal,b.risk,b.problem,b.notDone]));
+  const eqTable = mkTable(['ห้อง','นักเรียน','ปกติทุกด้าน','ต่ำกว่าเกณฑ์','ยังไม่ทำ'],
+    eqBreak.map(b=>[b.room,b.total,b.ok,b.low,b.notDone]));
+  const scrTable = mkTable(['ห้อง','นักเรียน','Red Flag','มีปัญหา','เสี่ยง','ยังไม่กรอก'],
+    scrBreak.map(b=>[b.room,b.total,b.redflag,b.problem,b.risk,b.notDone]));
+  const hvTable = mkTable(['ห้อง','นักเรียน','เยี่ยมแล้ว','มีข้อสังเกต','ยังไม่เยี่ยม'],
+    hvBreak.map(b=>[b.room,b.total,b.visited,b.concern,b.notDone]));
+
+  const totalStudents = DATA.length;
+  const sdqDone = DATA.filter(x=>x.sdq).length;
+  const eqDone = DATA.filter(x=>x.eq).length;
+  const scrDone = DATA.filter(x=>x.screening).length;
+  const hvDone = DATA.filter(x=>x.homeVisit&&x.homeVisit.visited).length;
+  const redFlagCount = DATA.filter(x=>x.screening&&x.screening.redFlag).length;
+
+  const statsHtmlFull = `
+    <div class="stats" style="margin-bottom:20px">
+      <div class="stat"><div class="n">${totalStudents}</div><div class="l">นักเรียนทั้งหมด</div></div>
+      <div class="stat s-ok"><div class="n">${sdqDone}</div><div class="l">ทำ SDQ แล้ว</div></div>
+      <div class="stat s-ok"><div class="n">${eqDone}</div><div class="l">ทำ EQ แล้ว</div></div>
+      <div class="stat s-ok"><div class="n">${scrDone}</div><div class="l">กรอกคัดกรองแล้ว</div></div>
+      <div class="stat s-ok"><div class="n">${hvDone}</div><div class="l">เยี่ยมบ้านแล้ว</div></div>
+      <div class="stat s-risk"><div class="n">${redFlagCount}</div><div class="l">Red Flag</div></div>
+    </div>`;
+
+  function scoreAllActivities(x){
+    let s=0;
+    if(x.screening&&x.screening.redFlag) s+=300;
+    if(x.sdq&&x.sdq.total==='มีปัญหา') s+=100; else if(x.sdq&&x.sdq.total==='เสี่ยง') s+=50;
+    if(x.screening&&x.screening.overall==='มีปัญหา') s+=80; else if(x.screening&&x.screening.overall==='เสี่ยง') s+=40;
+    if(x.eq&&x.eq!=='ปกติทุกด้าน') s+=20;
+    if(x.homeVisit&&(x.homeVisit.hasDisadvantage||x.homeVisit.hasDisability||x.homeVisit.hasConcern)) s+=20;
+    if(!x.homeVisit||!x.homeVisit.visited) s+=10;
+    return s;
+  }
+  const priorityRows = DATA.map(x=>({...x,_score:scoreAllActivities(x)})).filter(x=>x._score>0).sort((a,b)=>b._score-a._score).slice(0,15);
+  const priorityHtml = priorityRows.length ? priorityRows.map(x=>{
+    const tags=[];
+    if(x.screening&&x.screening.redFlag) tags.push('<span class="pill p-risk">🚩 Red Flag</span>');
+    if(x.sdq&&(x.sdq.total==='มีปัญหา'||x.sdq.total==='เสี่ยง')) tags.push(pill(x.sdq.total));
+    if(x.eq&&x.eq!=='ปกติทุกด้าน') tags.push('<span class="pill p-warn">EQ ต่ำกว่าเกณฑ์</span>');
+    if(x.screening&&(x.screening.overall==='มีปัญหา'||x.screening.overall==='เสี่ยง')) tags.push(screeningPill(x.screening));
+    if(!x.homeVisit||!x.homeVisit.visited) tags.push('<span class="pill p-none">ยังไม่เยี่ยมบ้าน</span>');
+    return `<div class="riskrow"><div class="rk" style="background:${x._score>=200?'var(--risk)':'var(--warn)'}">${x.room}</div>
+      <div class="info"><div class="name">${x.name} <span class="sub">(${x.id})</span></div><div class="areas">${tags.join(' ')}</div></div></div>`;
+  }).join('') : '<div class="empty">ไม่มีรายชื่อที่ต้องดูแลเร่งด่วนตามข้อมูลปัจจุบัน 🎉</div>';
+
+  document.getElementById('printArea').innerHTML = `
+    <h1 style="font-family:Mitr">รายงานสรุปสำหรับผู้บริหาร (ครบทุกกิจกรรม)</h1>
+    <p class="sub" style="margin-bottom:4px">${document.getElementById('schoolName').textContent} · ${document.getElementById('yearLabel').textContent}</p>
+    <p class="sub" style="margin-bottom:16px">รวมผล SDQ, EQ, การคัดกรองรายบุคคล และการเยี่ยมบ้าน ตามสิทธิ์ที่เข้าถึงได้ · พิมพ์เมื่อ ${new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'})}</p>
+    ${statsHtmlFull}
+    <h4>สรุปผล SDQ แยกตามห้อง</h4>${sdqTable}
+    <h4>สรุปผล EQ แยกตามห้อง</h4>${eqTable}
+    <h4>สรุปผลคัดกรองรายบุคคลแยกตามห้อง</h4>${scrTable}
+    <h4>สรุปการเยี่ยมบ้านแยกตามห้อง</h4>${hvTable}
+    <h4>🚩 รายชื่อที่ต้องดูแลเร่งด่วนที่สุด (รวมทุกกิจกรรม สูงสุด 15 คน)</h4>
+    <div class="risklist" style="border:none;padding:0">${priorityHtml}</div>
+  `;
+  document.getElementById('printArea').style.display='block';
+  window.print();
+  document.getElementById('printArea').style.display='none';
+}
+
 function printRoom(){
   const room = document.getElementById('fPrintRoom').value;
   if(!room){ alert('ไม่มีห้องให้เลือกพิมพ์ (ยังไม่มีข้อมูลนักเรียนในห้องใดเลย)'); return; }
   const rs = DATA.filter(x=>x.room===room).sort((a,b)=> (a.no||'')>(b.no||'')?1:-1);
   const y = document.getElementById('yearLabel').textContent;
-  const modeLabel = ACTIVITY_MODE==='eq' ? ' (เฉพาะผล EQ)' : ACTIVITY_MODE==='sdq' ? ' (เฉพาะผล SDQ)' : ACTIVITY_MODE==='screening' ? ' (เฉพาะคัดกรองรายบุคคล)' : '';
+  const modeLabel = ACTIVITY_MODE==='eq' ? ' (เฉพาะผล EQ)' : ACTIVITY_MODE==='sdq' ? ' (เฉพาะผล SDQ)' : ACTIVITY_MODE==='screening' ? ' (เฉพาะคัดกรองรายบุคคล)' : ACTIVITY_MODE==='homevisit' ? ' (เฉพาะเยี่ยมบ้าน)' : '';
 
   let statsLine, theadCols, rowsHtml;
   if(ACTIVITY_MODE==='screening'){
@@ -846,6 +1067,16 @@ function printRoom(){
       const s=x.screening;
       const areasText = s ? (s.areas&&s.areas.length? s.areas.join(', ') : (s.overall==='ปกติ'?'ไม่มี':'—')) : '—';
       return `<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${x.name}</td><td>${screeningPill(s)}</td><td style="text-align:left;font-size:12px">${areasText}</td></tr>`;
+    }).join('');
+  } else if(ACTIVITY_MODE==='homevisit'){
+    const done=rs.filter(x=>x.homeVisit&&x.homeVisit.visited).length;
+    const concern=rs.filter(x=>x.homeVisit&&(x.homeVisit.hasDisadvantage||x.homeVisit.hasDisability||x.homeVisit.hasConcern)).length;
+    statsLine = `นักเรียนทั้งหมด ${rs.length} คน · เยี่ยมบ้านแล้ว ${done} คน · มีข้อสังเกต ${concern} คน · ยังไม่ได้เยี่ยม ${rs.length-done} คน`;
+    theadCols = `<th>เลขที่</th><th>เลขประจำตัว</th><th style="text-align:left">ชื่อ-สกุล</th><th>สถานะ</th><th style="text-align:left">ข้อสังเกต</th>`;
+    rowsHtml = rs.map((x,i)=>{
+      const hv=x.homeVisit;
+      const flagsText = hv&&hv.flags&&hv.flags.length ? hv.flags.join(', ') : (hv&&hv.visited?'ไม่มี':'—');
+      return `<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${x.name}</td><td>${homeVisitPill(hv)}</td><td style="text-align:left;font-size:12px">${flagsText}</td></tr>`;
     }).join('');
   } else if(ACTIVITY_MODE==='eq'){
     const done=rs.filter(x=>x.eq).length;
@@ -1021,8 +1252,13 @@ async function saveScreeningForm(studentId, semester){
       if(r.expired){ closeScreeningForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
       document.getElementById('screenErr').textContent = r.message; document.getElementById('screenErr').className='alert err'; return;
     }
-    closeScreeningForm();
-    openReport(studentId); // รีเฟรชรายงานหลักให้เห็นสรุปล่าสุด
+    document.getElementById('screenContent').innerHTML = `
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:40px">✅</div>
+        <h2 style="margin-top:8px">บันทึกแบบคัดกรองเรียบร้อยแล้ว</h2>
+        <button class="btn-sm" style="margin-top:14px" onclick="closeScreeningForm(); openReport('${studentId}')">ดูรายงานรายบุคคล</button>
+        <button class="btn-sm" style="margin-top:14px" onclick="closeScreeningForm()">ปิดหน้าต่างนี้</button>
+      </div>`;
   }catch(e){
     document.getElementById('screenErr').textContent = 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'; document.getElementById('screenErr').className='alert err';
   }finally{ btn.disabled=false; btn.textContent='บันทึกแบบคัดกรอง'; }
@@ -1190,8 +1426,13 @@ async function saveHomeVisitForm(studentId, semester){
       if(r.expired){ closeHomeVisitForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
       document.getElementById('hvErr').textContent = r.message; document.getElementById('hvErr').className='alert err'; return;
     }
-    closeHomeVisitForm();
-    openReport(studentId);
+    document.getElementById('hvContent').innerHTML = `
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:40px">✅</div>
+        <h2 style="margin-top:8px">บันทึกข้อมูลเยี่ยมบ้านเรียบร้อยแล้ว</h2>
+        <button class="btn-sm" style="margin-top:14px" onclick="closeHomeVisitForm(); openReport('${studentId}')">ดูรายงานรายบุคคล</button>
+        <button class="btn-sm" style="margin-top:14px" onclick="closeHomeVisitForm()">ปิดหน้าต่างนี้</button>
+      </div>`;
   }catch(e){
     document.getElementById('hvErr').textContent = 'บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง'; document.getElementById('hvErr').className='alert err';
   }finally{ btn.disabled=false; btn.textContent='บันทึกข้อมูล'; }

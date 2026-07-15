@@ -757,6 +757,14 @@ function buildReportHTML(r){
 }
 
 /* ---------- สรุปข้อมูลเยี่ยมบ้านฉบับเต็ม สำหรับรายงานรายบุคคล ---------- */
+/* แปลง URL ของ Google Drive (เช่น .../file/d/FILE_ID/view) ให้เป็น URL รูปย่อที่ฝัง <img> ได้จริง
+   ไฟล์ต้องแชร์แบบ "ทุกคนที่มีลิงก์ = ดูได้" อยู่แล้ว (uploadHomeVisitPhoto_ ตั้งค่าให้ตอนอัปโหลด) */
+function driveThumb(url, size){
+  const m = String(url||'').match(/\/d\/([^/]+)/);
+  if(!m) return url;
+  return `https://drive.google.com/thumbnail?id=${m[1]}&sz=w${size||400}`;
+}
+
 function buildHomeVisitReportHTML(hv){
   if(!hv || !hv.exists) return '<p class="sub">ยังไม่มีข้อมูลรู้จักนักเรียน/เยี่ยมบ้านสำหรับปีนี้</p>';
   if(!HV_SCHEMA || !HV_SCHEMA.length) return '<p class="sub">ไม่สามารถโหลดโครงข้อมูลเยี่ยมบ้านได้ ลองเปิดรายงานนี้ใหม่อีกครั้ง</p>';
@@ -765,23 +773,33 @@ function buildHomeVisitReportHTML(hv){
     const v = a[f.id];
     if(f.type==='checkbox') return (v && v.length) ? v.join(', ') : '';
     if(f.type==='radio_sub') return (v && v.main) ? v.main + (v.sub && v.sub.length ? ' — ' + v.sub.join(', ') : '') : '';
-    if(f.type==='photo') return v ? `<a href="${v}" target="_blank" rel="noopener">🔗 ดูรูปภาพ</a>` : '';
     return (v===undefined||v===null||v==='') ? '' : v;
   };
   let html = `<div class="sub" style="margin-bottom:8px">ภาคเรียนที่บันทึกล่าสุด: ${fld(hv.semester)}${hv.savedBy?` · บันทึกโดย ${hv.savedBy}`:''}${hv.savedAt?` · ${new Date(hv.savedAt).toLocaleDateString('th-TH')}`:''}</div>`;
-  let lastSection = null, rows = '';
+  let lastSection = null, rows = '', photos = '', any = false;
   const flush = () => {
-    if(lastSection===null) return;
+    if(lastSection===null || (!rows && !photos)) return; // ไม่มีข้อมูลในหัวข้อนี้เลย → ข้ามไปเลย ไม่โชว์หัวข้อเปล่าๆ
+    any = true;
     html += `<div style="font-family:Mitr;font-weight:600;font-size:13.5px;margin:10px 0 4px;color:var(--ink)">${lastSection}</div>`;
-    html += rows ? `<div class="repgrid">${rows}</div>` : '<p class="sub" style="margin:0">ไม่มีข้อมูล</p>';
+    if(rows) html += `<div class="repgrid">${rows}</div>`;
+    if(photos) html += `<div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:6px">${photos}</div>`;
   };
   HV_SCHEMA.forEach(f=>{
-    if(f.section !== lastSection){ flush(); lastSection = f.section; rows=''; }
+    if(f.section !== lastSection){ flush(); lastSection = f.section; rows=''; photos=''; }
+    if(f.type==='photo'){
+      const v = a[f.id];
+      if(v) photos += `<a href="${v}" target="_blank" rel="noopener" style="text-align:center;text-decoration:none;color:var(--ink)">
+        <img src="${driveThumb(v,220)}" style="width:160px;height:120px;object-fit:cover;border-radius:8px;border:1.5px solid var(--line);display:block" loading="lazy">
+        <div class="sub" style="margin-top:4px;max-width:160px">${f.label||''}</div>
+      </a>`;
+      return;
+    }
     const val = fmtVal(f);
-    if(val) rows += `<div><b>${f.label || f.section}</b>${val}</div>`;
+    // ถ้า field ไม่มี label เฉพาะตัว (คำถามใช้ชื่อหัวข้อแทน) ไม่ต้องพิมพ์ label ซ้ำกับหัวข้อด้านบน
+    if(val) rows += f.label ? `<div><b>${f.label}</b>${val}</div>` : `<div>${val}</div>`;
   });
   flush();
-  return html;
+  return any ? html : html + '<p class="sub">ยังไม่มีข้อมูลกรอกไว้ในส่วนใดเลย</p>';
 }
 
 function buildScreeningSummaryHTML(sc){
@@ -1475,7 +1493,7 @@ function hvField(f, value){
     const url = value || '';
     return `<div class="hv-field">${label}
       <div class="hv-photo-box" id="hvphotobox_${f.id}">
-        ${url?`<img src="${url}"><div class="hv-photo-status">อัปโหลดแล้ว · <a href="${url}" target="_blank">เปิดดูรูปเต็ม</a></div>`:'<div class="hv-photo-status">ยังไม่มีรูป</div>'}
+        ${url?`<img src="${driveThumb(url,300)}"><div class="hv-photo-status">อัปโหลดแล้ว · <a href="${url}" target="_blank">เปิดดูรูปเต็ม</a></div>`:'<div class="hv-photo-status">ยังไม่มีรูป</div>'}
         <input type="file" accept="image/*" capture="environment" style="margin-top:8px" onchange="handlePhotoUpload(this,'${f.id}')">
         <input type="hidden" data-hv="${f.id}" value="${esc(url)}">
       </div>
@@ -1517,7 +1535,7 @@ async function handlePhotoUpload(inputEl, fieldId){
     statusEl.innerHTML = `อัปโหลดแล้ว · <a href="${r.url}" target="_blank">เปิดดูรูปเต็ม</a>`;
     let img = box.querySelector('img');
     if(!img){ img = document.createElement('img'); box.insertBefore(img, box.firstChild); }
-    img.src = r.url;
+    img.src = driveThumb(r.url,300);
   }catch(e){ statusEl.textContent = 'อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง'; }
 }
 

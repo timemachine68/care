@@ -701,6 +701,12 @@ async function openReport(id){
   document.getElementById('reportOverlay').classList.remove('hidden');
   document.getElementById('reportContent').innerHTML='กำลังโหลด...';
   try{
+    if(!HV_SCHEMA){
+      try{
+        const s = await api({action:'getHomeVisitSchema', token:TOKEN});
+        if(s.ok) HV_SCHEMA = s.fields;
+      }catch(e){}
+    }
     const r=await api({action:'getStudentReport',token:TOKEN,studentId:id});
     if(!r.ok){ document.getElementById('reportContent').innerHTML=`<div class="alert err" style="display:block">${r.message}</div>`; return; }
     document.getElementById('reportContent').innerHTML = buildReportHTML(r);
@@ -734,10 +740,40 @@ function buildReportHTML(r){
     ${buildScreeningSummaryHTML(r.screening)}
     ${latestSdq?`<div class="sub" style="margin-top:8px"><b>Red Flag / 9S (เชื่อมจากผล SDQ ปี ${latestSdq.year}):</b>
        สมาธิสั้น≈ไม่อยู่นิ่ง: ${pill(latestSdq.hyper.label)} · ซึมเศร้า/วิตกกังวล≈อารมณ์: ${pill(latestSdq.emotional.label)} · กลั่นแกล้ง/เพื่อน: ${pill(latestSdq.peer.label)}</div>`:''}
+    <h4>🏠 ข้อมูลรู้จักนักเรียนรายบุคคล (เยี่ยมบ้าน)</h4>
+    ${buildHomeVisitReportHTML(r.homeVisit)}
     <button class="btn-sm" style="margin-top:14px" onclick="openScreeningForm('${r.student.id}')">📋 กรอก/แก้ไขแบบคัดกรองรายบุคคล</button>
     <button class="btn-sm" style="margin-top:14px" onclick="openHomeVisitForm('${r.student.id}')">🏠 กรอก/แก้ไขข้อมูลรู้จักนักเรียน (เยี่ยมบ้าน)</button>
     <button class="btn-sm printbtn" onclick="printReport('${r.student.id}')">🖨️ พิมพ์รายงานนี้ (PDF)</button>
   `;
+}
+
+/* ---------- สรุปข้อมูลเยี่ยมบ้านฉบับเต็ม สำหรับรายงานรายบุคคล ---------- */
+function buildHomeVisitReportHTML(hv){
+  if(!hv || !hv.exists) return '<p class="sub">ยังไม่มีข้อมูลรู้จักนักเรียน/เยี่ยมบ้านสำหรับปีนี้</p>';
+  if(!HV_SCHEMA || !HV_SCHEMA.length) return '<p class="sub">ไม่สามารถโหลดโครงข้อมูลเยี่ยมบ้านได้ ลองเปิดรายงานนี้ใหม่อีกครั้ง</p>';
+  const a = hv.answers || {};
+  const fmtVal = (f) => {
+    const v = a[f.id];
+    if(f.type==='checkbox') return (v && v.length) ? v.join(', ') : '';
+    if(f.type==='radio_sub') return (v && v.main) ? v.main + (v.sub && v.sub.length ? ' — ' + v.sub.join(', ') : '') : '';
+    if(f.type==='photo') return v ? `<a href="${v}" target="_blank" rel="noopener">🔗 ดูรูปภาพ</a>` : '';
+    return (v===undefined||v===null||v==='') ? '' : v;
+  };
+  let html = `<div class="sub" style="margin-bottom:8px">ภาคเรียนที่บันทึกล่าสุด: ${fld(hv.semester)}${hv.savedBy?` · บันทึกโดย ${hv.savedBy}`:''}${hv.savedAt?` · ${new Date(hv.savedAt).toLocaleDateString('th-TH')}`:''}</div>`;
+  let lastSection = null, rows = '';
+  const flush = () => {
+    if(lastSection===null) return;
+    html += `<div style="font-family:Mitr;font-weight:600;font-size:13.5px;margin:10px 0 4px;color:var(--ink)">${lastSection}</div>`;
+    html += rows ? `<div class="repgrid">${rows}</div>` : '<p class="sub" style="margin:0">ไม่มีข้อมูล</p>';
+  };
+  HV_SCHEMA.forEach(f=>{
+    if(f.section !== lastSection){ flush(); lastSection = f.section; rows=''; }
+    const val = fmtVal(f);
+    if(val) rows += `<div><b>${f.label || f.section}</b>${val}</div>`;
+  });
+  flush();
+  return html;
 }
 
 function buildScreeningSummaryHTML(sc){

@@ -323,6 +323,28 @@ function logout(){
 }
 function showErr(id,msg){ const el=document.getElementById(id); el.textContent=msg||''; el.className=msg?'alert err':'alert'; }
 
+// ใช้ร่วมกันตอนเปิดฟอร์มคัดกรอง/เยี่ยมบ้าน/SDQ ครู — เช็คผลจาก API 1 จุด แทนที่จะเขียนซ้ำทุกฟอร์ม
+// คืนค่า true = ให้ฟังก์ชันที่เรียกใช้ return ทันที (จัดการ error/token หมดอายุให้แล้ว), false = ผลลัพธ์ ok ทำงานต่อได้
+function handleApiResult(res, contentId, closeFn, fallbackMsg){
+  if(res.expired){ closeFn(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return true; }
+  if(!res.ok){
+    document.getElementById(contentId).innerHTML = `<div class="alert err" style="display:block">${escHtml(res.message||fallbackMsg||'เกิดข้อผิดพลาด')}</div>`;
+    return true;
+  }
+  return false;
+}
+// ใช้ตอนกด "บันทึก" ในฟอร์มคัดกรอง/เยี่ยมบ้าน/SDQ ครู — เช็ค token หมดอายุ + โชว์ error ในกล่องข้อความของฟอร์มนั้นๆ
+// คืนค่า true = ให้ฟังก์ชันที่เรียกใช้ return ทันที, false = บันทึกสำเร็จ ทำงานต่อได้
+function handleSaveError(res, errElId, closeFn){
+  if(res.expired){ closeFn(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return true; }
+  if(!res.ok){
+    const el = document.getElementById(errElId);
+    el.textContent = res.message; el.className = 'alert err'; el.style.display = 'block';
+    return true;
+  }
+  return false;
+}
+
 // ใช้กับปุ่ม ✕ ของฟอร์มที่มีการกรอกข้อมูล (เยี่ยมบ้าน/คัดกรอง/SDQ ครู) — ถามยืนยันก่อนปิดเสมอ
 // กันกรณีแตะปุ่ม ✕ พลาดหรือกดโดยไม่ตั้งใจแล้วข้อมูลที่กรอกไว้หายไปทันที
 function confirmCloseForm(closeFn){
@@ -348,7 +370,7 @@ async function loadStudents(){
     document.getElementById('yearLabel').textContent='ปีการศึกษา '+r.year;
     document.getElementById('schoolName').textContent=r.schoolName;
     document.getElementById('whoami').innerHTML=
-      `เข้าใช้โดย <b>${r.teacher.name}</b> · ${r.teacher.role==='admin'?'เห็นข้อมูลทุกห้อง':'ดูแล '+r.teacher.rooms}`;
+      `เข้าใช้โดย <b>${escHtml(r.teacher.name)}</b> · ${r.teacher.role==='admin'?'เห็นข้อมูลทุกห้อง':'ดูแล '+escHtml(r.teacher.rooms)}`;
     const rooms=[...new Set(DATA.map(x=>x.room).filter(x=>x!=='—'))].sort();
     document.getElementById('fRoom').innerHTML='<option value="">ทุกห้อง</option>'+rooms.map(x=>`<option>${x}</option>`).join('');
     document.getElementById('fPrintRoom').innerHTML = rooms.length
@@ -510,10 +532,10 @@ function render(){
 
   document.getElementById('tbody').innerHTML = rows.length ? rows.map(x=>`
     <tr onclick="openReport('${x.id}')">
-      <td>${x.room}</td><td>${x.no||''}</td><td>${x.id}</td><td>${x.name}</td>
+      <td>${escHtml(x.room)}</td><td>${x.no||''}</td><td>${x.id}</td><td>${escHtml(x.name)}</td>
       <td class="col-sdq">${pill(x.sdq&&x.sdq.total)}</td>
       <td class="col-sdq">${problemAreas(x.sdq)}</td>
-      <td class="col-eq">${x.eq?(x.eq==='ปกติทุกด้าน'?'<span class="pill p-ok">ปกติทุกด้าน</span>':`<span class="pill p-warn">${x.eq}</span>`):'<span class="pill p-none">ยังไม่ทำ</span>'}</td>
+      <td class="col-eq">${eqPill(x)}</td>
       <td class="col-screening">${screeningPill(x.screening)}</td>
       <td class="col-screening" style="text-align:left;font-size:12px">${x.screening&&x.screening.areas&&x.screening.areas.length?x.screening.areas.join(', '):'<span class="sub">—</span>'}</td>
       <td class="col-homevisit">${homeVisitPill(x.homeVisit)}</td>
@@ -533,6 +555,11 @@ function homeVisitPill(hv){
   if(!hv || !hv.visited) return '<span class="pill p-none">ยังไม่เยี่ยม</span>';
   if(hv.hasDisadvantage || hv.hasDisability || hv.hasConcern) return '<span class="pill p-warn">มีข้อสังเกต</span>';
   return '<span class="pill p-ok">เยี่ยมแล้ว</span>';
+}
+// ใช้ร่วมกันทุกจุดที่แสดงผล EQ แบบย่อ (ตารางแดชบอร์ด, การ์ดรายชื่อที่ต้องติดตาม, ตารางพิมพ์รายห้อง/สรุป)
+function eqPill(x){
+  if(!x.eq) return '<span class="pill p-none">ยังไม่ทำ</span>';
+  return x.eq==='ปกติทุกด้าน' ? '<span class="pill p-ok">ปกติทุกด้าน</span>' : `<span class="pill p-warn">${escHtml(x.eq)}</span>`;
 }
 
 /* ---------- กราฟภาพรวม ---------- */
@@ -699,9 +726,9 @@ function renderRiskList(){
       pillHtml = pill(x.sdq&&x.sdq.total);
     }
     return `<div class="riskrow" onclick="openReport('${x.id}')">
-      <div class="rk" style="background:${c}">${x.room}</div>
+      <div class="rk" style="background:${c}">${escHtml(x.room)}</div>
       <div class="info">
-        <div class="name">${x.name} <span class="sub">(${x.id})</span></div>
+        <div class="name">${escHtml(x.name)} <span class="sub">(${x.id})</span></div>
         <div class="areas">${areas}</div>
       </div>
       ${pillHtml}
@@ -734,15 +761,15 @@ function buildReportHTML(r){
   const eqRows = r.eqHistory.map(h=>`<tr><td>${h.year}</td><td>${h.domain['ดี']}</td><td>${h.domain['เก่ง']}</td><td>${h.domain['สุข']}</td></tr>`).join('');
   const latestSdq = r.sdqHistory[r.sdqHistory.length-1];
   return `
-    <h2>${r.student.prefix}${r.student.first} ${r.student.last}</h2>
-    <div class="sub">เลขประจำตัว ${r.student.id} · ${y['ระดับชั้น']||''}/${y['ห้อง']||''} เลขที่ ${y['เลขที่']||''}</div>
+    <h2>${escHtml(r.student.prefix)}${escHtml(r.student.first)} ${escHtml(r.student.last)}</h2>
+    <div class="sub">เลขประจำตัว ${r.student.id} · ${escHtml(y['ระดับชั้น'])||''}/${escHtml(y['ห้อง'])||''} เลขที่ ${escHtml(y['เลขที่'])||''}</div>
     <div class="repgrid">
-      <div><b>ผู้ปกครอง</b>${y['ชื่อผู้ปกครอง']||'—'} (${y['ความสัมพันธ์']||'—'})</div>
-      <div><b>เบอร์ผู้ปกครอง</b>${y['เบอร์ผู้ปกครอง']||'—'}</div>
-      <div><b>สถานภาพครอบครัว</b>${y['สถานภาพครอบครัว']||'—'}</div>
-      <div><b>อาศัยอยู่กับ</b>${y['อาศัยอยู่กับ']||'—'}</div>
-      <div><b>รายได้ครอบครัว</b>${y['รายได้ครอบครัว/เดือน']||'—'}</div>
-      <div><b>โรคประจำตัว</b>${y['โรคประจำตัว']||'—'}</div>
+      <div><b>ผู้ปกครอง</b>${escHtml(y['ชื่อผู้ปกครอง'])||'—'} (${escHtml(y['ความสัมพันธ์'])||'—'})</div>
+      <div><b>เบอร์ผู้ปกครอง</b>${escHtml(y['เบอร์ผู้ปกครอง'])||'—'}</div>
+      <div><b>สถานภาพครอบครัว</b>${escHtml(y['สถานภาพครอบครัว'])||'—'}</div>
+      <div><b>อาศัยอยู่กับ</b>${escHtml(y['อาศัยอยู่กับ'])||'—'}</div>
+      <div><b>รายได้ครอบครัว</b>${escHtml(y['รายได้ครอบครัว/เดือน'])||'—'}</div>
+      <div><b>โรคประจำตัว</b>${escHtml(y['โรคประจำตัว'])||'—'}</div>
     </div>
     <h4>พัฒนาการ SDQ รายปี</h4>
     ${sdqRows?`<table class="trend-table"><tr><th>ปี</th><th>อารมณ์</th><th>ความประพฤติ</th><th>ไม่อยู่นิ่ง</th><th>เพื่อน</th><th>รวม</th></tr>${sdqRows}</table>`:'<p class="sub">ยังไม่มีข้อมูล</p>'}
@@ -757,7 +784,7 @@ function buildReportHTML(r){
     ${buildHomeVisitReportHTML(r.homeVisit)}
     <button class="btn-sm" style="margin-top:14px" onclick="openScreeningForm('${r.student.id}')">📋 กรอก/แก้ไขแบบคัดกรองรายบุคคล</button>
     <button class="btn-sm" style="margin-top:14px" onclick="openHomeVisitForm('${r.student.id}')">🏠 กรอก/แก้ไขข้อมูลรู้จักนักเรียน (เยี่ยมบ้าน)</button>
-    <button class="btn-sm" style="margin-top:14px" onclick="openSDQTeacherForm('${r.student.id}','${(r.student.prefix||'')+r.student.first+' '+r.student.last}')">📝 ประเมิน SDQ ฉบับครู</button>
+    <button class="btn-sm" style="margin-top:14px" data-sname="${escHtml((r.student.prefix||'')+r.student.first+' '+r.student.last)}" onclick="openSDQTeacherForm('${r.student.id}', this.dataset.sname)">📝 ประเมิน SDQ ฉบับครู</button>
     <button class="btn-sm printbtn" onclick="printReport('${r.student.id}')">🖨️ พิมพ์รายงานนี้ (PDF)</button>
   `;
 }
@@ -781,7 +808,7 @@ function buildHomeVisitReportHTML(hv){
     if(f.type==='radio_sub') return (v && v.main) ? v.main + (v.sub && v.sub.length ? ' — ' + v.sub.join(', ') : '') : '';
     return (v===undefined||v===null||v==='') ? '' : v;
   };
-  let html = `<div class="sub" style="margin-bottom:8px">ภาคเรียนที่บันทึกล่าสุด: ${fld(hv.semester)}${hv.savedBy?` · บันทึกโดย ${hv.savedBy}`:''}${hv.savedAt?` · ${new Date(hv.savedAt).toLocaleDateString('th-TH')}`:''}</div>`;
+  let html = `<div class="sub" style="margin-bottom:8px">ภาคเรียนที่บันทึกล่าสุด: ${fld(hv.semester)}${hv.savedBy?` · บันทึกโดย ${escHtml(hv.savedBy)}`:''}${hv.savedAt?` · ${new Date(hv.savedAt).toLocaleDateString('th-TH')}`:''}</div>`;
   let lastSection = null, rows = '', photos = '', any = false;
   const flush = () => {
     if(lastSection===null || (!rows && !photos)) return; // ไม่มีข้อมูลในหัวข้อนี้เลย → ข้ามไปเลย ไม่โชว์หัวข้อเปล่าๆ
@@ -802,7 +829,7 @@ function buildHomeVisitReportHTML(hv){
     }
     const val = fmtVal(f);
     // ถ้า field ไม่มี label เฉพาะตัว (คำถามใช้ชื่อหัวข้อแทน) ไม่ต้องพิมพ์ label ซ้ำกับหัวข้อด้านบน
-    if(val) rows += f.label ? `<div><b>${f.label}</b>${val}</div>` : `<div>${val}</div>`;
+    if(val) rows += f.label ? `<div><b>${f.label}</b>${escHtml(val)}</div>` : `<div>${escHtml(val)}</div>`;
   });
   flush();
   return any ? html : html + '<p class="sub">ยังไม่มีข้อมูลกรอกไว้ในส่วนใดเลย</p>';
@@ -812,14 +839,21 @@ function buildScreeningSummaryHTML(sc){
   if(!sc) return '<p class="sub">ยังไม่มีการกรอกแบบคัดกรองรายบุคคลสำหรับปีนี้</p>';
   let html = '';
   if(sc.redFlag && sc.redFlag.selected && sc.redFlag.selected.indexOf('มี —')===0){
-    html += `<div class="alert err" style="display:block;margin-bottom:8px">🚩 <b>Red Flag:</b> ${sc.redFlag.selected}${sc.redFlag.note?`<br><span class="sub">หมายเหตุ: ${sc.redFlag.note}</span>`:''}</div>`;
+    html += `<div class="alert err" style="display:block;margin-bottom:8px">🚩 <b>Red Flag:</b> ${sc.redFlag.selected}${sc.redFlag.note?`<br><span class="sub">หมายเหตุ: ${escHtml(sc.redFlag.note)}</span>`:''}</div>`;
   }
   html += `<div class="sub" style="margin-bottom:6px">ภาคเรียนล่าสุดที่บันทึก: ${fld(sc.semester)}</div>`;
-  html += sc.sections.map(s=>`<div style="margin-bottom:4px"><b style="font-size:13px">${s.title}:</b> ${pill(s.trend||'ยังไม่ระบุ')} ${s.comment?`<span class="sub">— ${s.comment}</span>`:''}</div>`).join('');
+  html += sc.sections.map(s=>`<div style="margin-bottom:4px"><b style="font-size:13px">${s.title}:</b> ${pill(s.trend||'ยังไม่ระบุ')} ${s.comment?`<span class="sub">— ${escHtml(s.comment)}</span>`:''}</div>`).join('');
   return html;
 }
 
-function fld(v){ return (v===undefined||v===null||v==='') ? '—' : v; }
+// escape ข้อความก่อนแทรกลง innerHTML เสมอ กันข้อมูลที่นักเรียน/ผู้ปกครอง/ครูกรอกเอง (ชื่อผู้ปกครอง, ที่อยู่,
+// หมายเหตุ, ฯลฯ) มีอักขระ HTML/JS แฝงอยู่แล้วรันเป็นสคริปต์ตอนครูคนอื่นเปิดดู (Stored XSS)
+function escHtml(s){
+  return String(s===undefined||s===null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function fld(v){ return (v===undefined||v===null||v==='') ? '—' : escHtml(v); }
 
 function buildCareerHTML(career){
   if(!career || (!career.m6 && !career.m3 && !career.m6Error && !career.m3Error)) return '';
@@ -1096,8 +1130,8 @@ async function printSummaryFull(){
     if(x.eq&&x.eq!=='ปกติทุกด้าน') tags.push('<span class="pill p-warn">EQ ต่ำกว่าเกณฑ์</span>');
     if(x.screening&&(x.screening.overall==='มีปัญหา'||x.screening.overall==='เสี่ยง')) tags.push(screeningPill(x.screening));
     if(!x.homeVisit||!x.homeVisit.visited) tags.push('<span class="pill p-none">ยังไม่เยี่ยมบ้าน</span>');
-    return `<div class="riskrow"><div class="rk" style="background:${x._score>=200?'var(--risk)':'var(--warn)'}">${x.room}</div>
-      <div class="info"><div class="name">${x.name} <span class="sub">(${x.id})</span></div><div class="areas">${tags.join(' ')}</div></div></div>`;
+    return `<div class="riskrow"><div class="rk" style="background:${x._score>=200?'var(--risk)':'var(--warn)'}">${escHtml(x.room)}</div>
+      <div class="info"><div class="name">${escHtml(x.name)} <span class="sub">(${x.id})</span></div><div class="areas">${tags.join(' ')}</div></div></div>`;
   }).join('') : '<div class="empty">ไม่มีรายชื่อที่ต้องดูแลเร่งด่วนตามข้อมูลปัจจุบัน 🎉</div>';
 
   document.getElementById('printArea').innerHTML = `
@@ -1134,7 +1168,7 @@ function printRoom(){
     rowsHtml = rs.map((x,i)=>{
       const s=x.screening;
       const areasText = s ? (s.areas&&s.areas.length? s.areas.join(', ') : (s.overall==='ปกติ'?'ไม่มี':'—')) : '—';
-      return `<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${x.name}</td><td>${screeningPill(s)}</td><td style="text-align:left;font-size:12px">${areasText}</td></tr>`;
+      return `<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${escHtml(x.name)}</td><td>${screeningPill(s)}</td><td style="text-align:left;font-size:12px">${areasText}</td></tr>`;
     }).join('');
   } else if(ACTIVITY_MODE==='homevisit'){
     const done=rs.filter(x=>x.homeVisit&&x.homeVisit.visited).length;
@@ -1144,25 +1178,25 @@ function printRoom(){
     rowsHtml = rs.map((x,i)=>{
       const hv=x.homeVisit;
       const flagsText = hv&&hv.flags&&hv.flags.length ? hv.flags.join(', ') : (hv&&hv.visited?'ไม่มี':'—');
-      return `<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${x.name}</td><td>${homeVisitPill(hv)}</td><td style="text-align:left;font-size:12px">${flagsText}</td></tr>`;
+      return `<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${escHtml(x.name)}</td><td>${homeVisitPill(hv)}</td><td style="text-align:left;font-size:12px">${flagsText}</td></tr>`;
     }).join('');
   } else if(ACTIVITY_MODE==='eq'){
     const done=rs.filter(x=>x.eq).length;
     const low=rs.filter(x=>x.eq&&x.eq!=='ปกติทุกด้าน').length;
     statsLine = `นักเรียนทั้งหมด ${rs.length} คน · ทำแบบประเมิน EQ แล้ว ${done} คน · ต่ำกว่าเกณฑ์อย่างน้อย 1 ด้าน ${low} คน`;
     theadCols = `<th>เลขที่</th><th>เลขประจำตัว</th><th style="text-align:left">ชื่อ-สกุล</th><th>ผล EQ</th>`;
-    rowsHtml = rs.map((x,i)=>`<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${x.name}</td>
-      <td>${x.eq?(x.eq==='ปกติทุกด้าน'?'<span class="pill p-ok">ปกติทุกด้าน</span>':`<span class="pill p-warn">${x.eq}</span>`):'<span class="pill p-none">ยังไม่ทำ</span>'}</td></tr>`).join('');
+    rowsHtml = rs.map((x,i)=>`<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${escHtml(x.name)}</td>
+      <td>${eqPill(x)}</td></tr>`).join('');
   } else {
     const done = rs.filter(x=>x.sdq).length;
     const risk = rs.filter(x=>x.sdq&&x.sdq.total==='เสี่ยง').length;
     const prob = rs.filter(x=>x.sdq&&x.sdq.total==='มีปัญหา').length;
     statsLine = `นักเรียนทั้งหมด ${rs.length} คน · ทำแบบประเมินแล้ว ${done} คน · เสี่ยง ${risk} คน · มีปัญหา ${prob} คน`;
     theadCols = `<th>เลขที่</th><th>เลขประจำตัว</th><th style="text-align:left">ชื่อ-สกุล</th><th>ผล SDQ</th><th style="text-align:left">ด้านที่ต้องดูแล</th>` + (ACTIVITY_MODE==='all' ? `<th>EQ</th>` : '');
-    rowsHtml = rs.map((x,i)=>`<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${x.name}</td>
+    rowsHtml = rs.map((x,i)=>`<tr><td>${i+1}</td><td>${x.id}</td><td style="text-align:left">${escHtml(x.name)}</td>
       <td>${pill(x.sdq&&x.sdq.total)}</td>
       <td style="text-align:left;font-size:12px">${problemAreas(x.sdq).replace(/<[^>]+>/g,'')}</td>
-      ${ACTIVITY_MODE==='all' ? `<td>${x.eq?(x.eq==='ปกติทุกด้าน'?'<span class="pill p-ok">ปกติทุกด้าน</span>':`<span class="pill p-warn">${x.eq}</span>`):'<span class="pill p-none">ยังไม่ทำ</span>'}</td>` : ''}</tr>`).join('');
+      ${ACTIVITY_MODE==='all' ? `<td>${eqPill(x)}</td>` : ''}</tr>`).join('');
   }
 
   document.getElementById('printArea').innerHTML = `
@@ -1201,15 +1235,13 @@ async function openScreeningForm(studentId){
   try{
     if(!SCREEN_SCHEMA){
       const s = await api({action:'getScreeningSchema', token:TOKEN});
-      if(s.expired){ closeScreeningForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
-      if(!s.ok){ document.getElementById('screenContent').innerHTML = `<div class="alert err" style="display:block">${s.message||'โหลดแบบฟอร์มไม่สำเร็จ'}</div>`; return; }
+      if(handleApiResult(s, 'screenContent', closeScreeningForm, 'โหลดแบบฟอร์มไม่สำเร็จ')) return;
       SCREEN_SCHEMA = s.sections;
       REDFLAG_OPTS = s.redFlagOptions;
     }
     const semester = prompt('ภาคเรียนที่ (1 หรือ 2)', '1') || '1';
     const existing = await api({action:'getIndividualScreening', token:TOKEN, studentId, semester});
-    if(existing.expired){ closeScreeningForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
-    if(!existing.ok){ document.getElementById('screenContent').innerHTML = `<div class="alert err" style="display:block">${existing.message}</div>`; return; }
+    if(handleApiResult(existing, 'screenContent', closeScreeningForm)) return;
     renderScreeningForm(studentId, semester, existing.exists ? existing : null);
   }catch(e){ document.getElementById('screenContent').innerHTML = '<div class="alert err" style="display:block">โหลดแบบฟอร์มไม่สำเร็จ</div>'; }
 }
@@ -1289,7 +1321,7 @@ function toggleRedFlagWarning(){
   document.getElementById('redflagWarning').style.display = (sel && sel.value.indexOf('มี —')===0) ? 'block' : 'none';
 }
 
-function fld2(v){ return (v===undefined||v===null) ? '' : v; }
+function fld2(v){ return (v===undefined||v===null) ? '' : escHtml(v); }
 
 async function saveScreeningForm(studentId, semester){
   const basic = {
@@ -1316,10 +1348,7 @@ async function saveScreeningForm(studentId, semester){
   document.getElementById('screenErr').className = 'alert';
   try{
     const r = await api({action:'saveIndividualScreening', token:TOKEN, studentId, semester, basic, redFlag, sections});
-    if(!r.ok){
-      if(r.expired){ closeScreeningForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
-      document.getElementById('screenErr').textContent = r.message; document.getElementById('screenErr').className='alert err'; return;
-    }
+    if(handleSaveError(r, 'screenErr', closeScreeningForm)) return;
     document.getElementById('screenContent').innerHTML = `
       <div style="text-align:center;padding:20px 0">
         <div style="font-size:40px">✅</div>
@@ -1343,14 +1372,12 @@ async function openHomeVisitForm(studentId){
   try{
     if(!HV_SCHEMA){
       const s = await api({action:'getHomeVisitSchema', token:TOKEN});
-      if(s.expired){ closeHomeVisitForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
-      if(!s.ok){ document.getElementById('hvContent').innerHTML = `<div class="alert err" style="display:block">${s.message||'โหลดแบบฟอร์มไม่สำเร็จ'}</div>`; return; }
+      if(handleApiResult(s, 'hvContent', closeHomeVisitForm, 'โหลดแบบฟอร์มไม่สำเร็จ')) return;
       HV_SCHEMA = s.fields;
     }
     const semester = prompt('ภาคเรียนที่ (1 หรือ 2)', '1') || '1';
     const existing = await api({action:'getHomeVisit', token:TOKEN, studentId, semester});
-    if(existing.expired){ closeHomeVisitForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
-    if(!existing.ok){ document.getElementById('hvContent').innerHTML = `<div class="alert err" style="display:block">${existing.message}</div>`; return; }
+    if(handleApiResult(existing, 'hvContent', closeHomeVisitForm)) return;
     renderHomeVisitForm(studentId, semester, existing);
   }catch(e){ document.getElementById('hvContent').innerHTML = '<div class="alert err" style="display:block">โหลดแบบฟอร์มไม่สำเร็จ</div>'; }
 }
@@ -1364,12 +1391,11 @@ async function openSDQTeacherForm(studentId, studentName){
   document.getElementById('sdqTContent').innerHTML = 'กำลังโหลด...';
   try{
     const r = await api({action:'getSDQTeacherForm', token:TOKEN, studentId});
-    if(r.expired){ closeSDQTeacherForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
-    if(!r.ok){ document.getElementById('sdqTContent').innerHTML = `<div class="alert err" style="display:block">${r.message}</div>`; return; }
+    if(handleApiResult(r, 'sdqTContent', closeSDQTeacherForm)) return;
     if(r.done){
       document.getElementById('sdqTContent').innerHTML = `
         <h2>📝 SDQ ฉบับครูประเมินนักเรียน</h2>
-        <div class="sub">${studentName} (${studentId}) · ปีการศึกษา ${r.academicYear}</div>
+        <div class="sub">${escHtml(studentName)} (${studentId}) · ปีการศึกษา ${r.academicYear}</div>
         <div class="alert" style="display:block;background:var(--accent-soft);color:var(--ink);border:1.5px solid var(--accent);margin-top:14px">
           ✅ ปีการศึกษานี้มีการประเมินฉบับครูสำหรับนักเรียนคนนี้แล้ว<br>
           <span class="sub">หากต้องการแก้ไขผลการประเมิน กรุณาติดต่อผู้ดูแลระบบเพื่อลบข้อมูลเดิมก่อน</span>
@@ -1384,7 +1410,7 @@ function closeSDQTeacherForm(){ document.getElementById('sdqTOverlay').classList
 
 function renderSDQTeacherForm(studentId, studentName, form){
   let html = `<h2>📝 SDQ ฉบับครูประเมินนักเรียน</h2>
-    <div class="sub">${studentName} (${studentId}) · ปีการศึกษา ${form.academicYear}</div>
+    <div class="sub">${escHtml(studentName)} (${studentId}) · ปีการศึกษา ${form.academicYear}</div>
     <div class="sub" style="margin-top:4px">พิจารณาพฤติกรรมของนักเรียนในช่วง 6 เดือนที่ผ่านมา แล้วเลือกคำตอบที่ตรงที่สุดในแต่ละข้อ</div>
     <div class="scr-sec">`;
   form.items.forEach(it=>{
@@ -1421,8 +1447,7 @@ async function saveSDQTeacherForm(studentId){
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
   try{
     const r = await api({action:'submitSDQTeacher', token:TOKEN, studentId, answers});
-    if(r.expired){ closeSDQTeacherForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
-    if(!r.ok){ errEl.textContent = r.message; errEl.className='alert err'; errEl.style.display='block'; return; }
+    if(handleSaveError(r, 'sdqTErr', closeSDQTeacherForm)) return;
     document.getElementById('sdqTContent').innerHTML = `
       <h2>📝 SDQ ฉบับครูประเมินนักเรียน</h2>
       <div class="alert" style="display:block;background:var(--accent-soft);color:var(--ink);border:1.5px solid var(--accent);margin-top:14px">
@@ -1568,10 +1593,7 @@ async function saveHomeVisitForm(studentId, semester){
   document.getElementById('hvErr').className = 'alert';
   try{
     const r = await api({action:'saveHomeVisit', token:TOKEN, studentId, semester, answers});
-    if(!r.ok){
-      if(r.expired){ closeHomeVisitForm(); logout(); showErr('loginErr','หมดเวลาใช้งาน กรุณาเข้าสู่ระบบใหม่'); return; }
-      document.getElementById('hvErr').textContent = r.message; document.getElementById('hvErr').className='alert err'; return;
-    }
+    if(handleSaveError(r, 'hvErr', closeHomeVisitForm)) return;
     document.getElementById('hvContent').innerHTML = `
       <div style="text-align:center;padding:20px 0">
         <div style="font-size:40px">✅</div>

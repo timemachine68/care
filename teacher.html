@@ -766,14 +766,6 @@ function buildReportHTML(r){
   return `
     <h2>${escHtml(r.student.prefix)}${escHtml(r.student.first)} ${escHtml(r.student.last)}</h2>
     <div class="sub">เลขประจำตัว ${r.student.id} · ${escHtml(y['ระดับชั้น'])||''}/${escHtml(y['ห้อง'])||''} เลขที่ ${escHtml(y['เลขที่'])||''}</div>
-    <div class="repgrid">
-      <div><b>ผู้ปกครอง</b>${escHtml(y['ชื่อผู้ปกครอง'])||'—'} (${escHtml(y['ความสัมพันธ์'])||'—'})</div>
-      <div><b>เบอร์ผู้ปกครอง</b>${escHtml(y['เบอร์ผู้ปกครอง'])||'—'}</div>
-      <div><b>สถานภาพครอบครัว</b>${escHtml(y['สถานภาพครอบครัว'])||'—'}</div>
-      <div><b>อาศัยอยู่กับ</b>${escHtml(y['อาศัยอยู่กับ'])||'—'}</div>
-      <div><b>รายได้ครอบครัว</b>${escHtml(y['รายได้ครอบครัว/เดือน'])||'—'}</div>
-      <div><b>โรคประจำตัว</b>${escHtml(y['โรคประจำตัว'])||'—'}</div>
-    </div>
     <h4>พัฒนาการ SDQ รายปี</h4>
     ${sdqRows?`<table class="trend-table"><tr><th>ปี</th><th>อารมณ์</th><th>ความประพฤติ</th><th>ไม่อยู่นิ่ง</th><th>เพื่อน</th><th>รวม</th></tr>${sdqRows}</table>`:'<p class="sub">ยังไม่มีข้อมูล</p>'}
     <h4>พัฒนาการ EQ รายปี (คะแนนรวม ดี-เก่ง-สุข)</h4>

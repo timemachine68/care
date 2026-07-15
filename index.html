@@ -98,19 +98,28 @@ footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:26px}
 
 <header>
   <span class="eyebrow">ระบบดูแลช่วยเหลือนักเรียน</span>
-  <h1 id="schoolName">แบบข้อมูลนักเรียนรายบุคคล + แบบประเมิน SDQ</h1>
-  <p>แบ่งทำเป็นช่วงๆ ได้ ไม่ต้องทำให้เสร็จรวดเดียว ระบบจำข้อมูลที่ทำไปแล้วให้เอง</p>
+  <h1 id="schoolName">เข้าสู่ระบบ</h1>
+  <p id="headerSub">เลือกบทบาทของท่านเพื่อเข้าสู่ระบบ</p>
 </header>
 
-<div class="progress">
+<div class="progress hidden" id="progressBar">
   <div class="pstep on" id="p1"></div>
   <div class="pstep" id="p2"></div>
   <div class="pstep" id="p3"></div>
   <div class="pstep" id="p4"></div>
 </div>
 
+<!-- STEP 0 : เลือกบทบาท -->
+<section class="card" id="step0">
+  <h2>ท่านเข้าใช้งานในฐานะ</h2>
+  <p class="desc">เลือกบทบาทเพื่อเข้าสู่แบบฟอร์มที่เหมาะกับท่าน</p>
+  <button class="btn-main" onclick="chooseRole('student')">🧑‍🎓 นักเรียน</button>
+  <button class="btn-main" style="background:var(--ink)" onclick="chooseRole('parent')">👨‍👩‍👧 ผู้ปกครอง</button>
+  <button class="btn-ghost" onclick="chooseRole('teacher')">🧑‍🏫 ครู / บุคลากร</button>
+</section>
+
 <!-- STEP 1 : VERIFY -->
-<section class="card" id="step1">
+<section class="card hidden" id="step1">
   <h2>ยืนยันตัวตน</h2>
   <p class="desc">กรอกเลขประจำตัวนักเรียนและวันเกิด เพื่อเข้าสู่แบบฟอร์มของตัวเอง</p>
   <label for="sid">เลขประจำตัวนักเรียน</label>
@@ -123,6 +132,7 @@ footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:26px}
   </div>
   <div class="alert err" id="err1"></div>
   <button class="btn-main" id="btnVerify" onclick="verify()">เข้าสู่ระบบ</button>
+  <button class="btn-ghost" onclick="backToRole()">← เลือกบทบาทใหม่</button>
   <div class="pdpa">🔒 ข้อมูลนี้เก็บเพื่อการดูแลช่วยเหลือนักเรียนตามระบบของโรงเรียนเท่านั้น เข้าถึงได้เฉพาะครูผู้เกี่ยวข้อง</div>
 </section>
 
@@ -236,6 +246,44 @@ footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:26px}
   </div>
 </section>
 
+<!-- PARENT STEP 1 : VERIFY -->
+<section class="card hidden" id="stepP1">
+  <h2>สำหรับผู้ปกครอง</h2>
+  <p class="desc">กรอกเลขประจำตัวและวันเกิดของ<b>นักเรียน (บุตรหลานของท่าน)</b> เพื่อเข้าทำแบบประเมิน — ใช้รหัสเดียวกับที่นักเรียนใช้เข้าระบบ</p>
+  <label for="p_sid">เลขประจำตัวนักเรียน</label>
+  <input id="p_sid" inputmode="numeric" autocomplete="off" placeholder="เช่น 12345">
+  <label>วันเดือนปีเกิดของนักเรียน (พ.ศ.)</label>
+  <div class="row3">
+    <select id="p_bd"><option value="">วันที่</option></select>
+    <select id="p_bm"><option value="">เดือน</option></select>
+    <select id="p_by"><option value="">ปี พ.ศ.</option></select>
+  </div>
+  <div class="alert err" id="errP1"></div>
+  <button class="btn-main" id="btnVerifyParent" onclick="verifyParent()">เข้าสู่ระบบ</button>
+  <button class="btn-ghost" onclick="backToRole()">← เลือกบทบาทใหม่</button>
+  <div class="pdpa">🔒 ใช้เลขประจำตัวและวันเกิดของนักเรียนเพื่อยืนยันว่าเป็นผู้ปกครองของนักเรียนคนดังกล่าว ข้อมูลนี้เก็บเพื่อการดูแลช่วยเหลือนักเรียนตามระบบของโรงเรียนเท่านั้น</div>
+</section>
+
+<!-- PARENT STEP 2 : SDQ ฉบับผู้ปกครอง -->
+<section class="card hidden" id="stepP2">
+  <div class="hello" id="helloP"></div>
+  <h2>แบบประเมินพฤติกรรมนักเรียน (ฉบับผู้ปกครอง)</h2>
+  <p class="desc">อ่านแต่ละข้อแล้วเลือกคำตอบที่ตรงกับ<b>พฤติกรรมของนักเรียนในช่วง 6 เดือนที่ผ่านมา</b> ไม่มีคำตอบถูกหรือผิด ตอบตามความจริงได้เลยค่ะ</p>
+  <div id="sdqPList"></div>
+  <div class="alert err" id="errP2"></div>
+  <div class="counter"><span id="countP">ตอบแล้ว 0 / 25 ข้อ</span></div>
+  <button class="btn-main" id="btnSdqP" onclick="submitSDQParentForm()">ส่งแบบประเมิน</button>
+</section>
+
+<!-- PARENT DONE -->
+<section class="card hidden" id="stepPDone">
+  <div class="done">
+    <div class="big">🌈</div>
+    <h2>ส่งแบบประเมินเรียบร้อยแล้ว</h2>
+    <p>ขอบคุณที่สละเวลาประเมินบุตรหลานตามความเป็นจริงนะคะ ข้อมูลนี้จะช่วยให้ครูดูแลนักเรียนได้ดียิ่งขึ้น 💚</p>
+  </div>
+</section>
+
 <footer>ระบบดูแลช่วยเหลือนักเรียน · งานแนะแนว</footer>
 </div>
 
@@ -244,6 +292,9 @@ footer{text-align:center;font-size:12.5px;color:var(--ink-soft);margin-top:26px}
    ⚙️ ตั้งค่าที่เดียวจบ: วาง URL ของ Apps Script Web App ตรงนี้
    ============================================================ */
 const API_URL = 'https://script.google.com/macros/s/AKfycbwCO8tT1z0lA89oqyavIU6hjvRs3hoydW8eJWk5TxeFWthd8fcW3yQc3xBzJkL2Upzv/exec';
+
+/* ⚠️ ถ้าไฟล์ teacher.html ไม่ได้อยู่โฟลเดอร์เดียวกับไฟล์นี้ (เช่นคนละ URL/โดเมน) แก้ตรงนี้เป็น URL เต็ม */
+const TEACHER_URL = 'teacher.html';
 
 /* แบบประเมิน SDQ ฉบับนักเรียนประเมินตนเอง 25 ข้อ
    ⚠️ กรุณาตรวจทานถ้อยคำให้ตรงกับแบบฟอร์มทางการของกรมสุขภาพจิตก่อนใช้จริง */
@@ -281,10 +332,11 @@ let session = { studentId:'', birthdate:'' };
 const months = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 (function init(){
   const bd=document.getElementById('bd'), bm=document.getElementById('bm'), by=document.getElementById('by');
-  for(let i=1;i<=31;i++) bd.add(new Option(i,i));
-  months.forEach((m,i)=>bm.add(new Option(m,i+1)));
+  const pbd=document.getElementById('p_bd'), pbm=document.getElementById('p_bm'), pby=document.getElementById('p_by');
+  for(let i=1;i<=31;i++){ bd.add(new Option(i,i)); pbd.add(new Option(i,i)); }
+  months.forEach((m,i)=>{ bm.add(new Option(m,i+1)); pbm.add(new Option(m,i+1)); });
   const thisYearBE = new Date().getFullYear()+543;
-  for(let y=thisYearBE-10; y>=thisYearBE-22; y--) by.add(new Option(y,y));
+  for(let y=thisYearBE-10; y>=thisYearBE-22; y--){ by.add(new Option(y,y)); pby.add(new Option(y,y)); }
 
   const list=document.getElementById('sdqList');
   SDQ_ITEMS.forEach((t,i)=>{
@@ -296,6 +348,8 @@ const months = ['มกราคม','กุมภาพันธ์','มีน
       </div>`;
     list.appendChild(q);
   });
+
+  show('step0');
 })();
 
 /* ---------- helpers ---------- */
@@ -308,10 +362,16 @@ async function api(payload){
   return res.json();
 }
 function show(step){
-  ['step1','step2','step3','step4','stepPartial','stepDone'].forEach(s=>document.getElementById(s).classList.add('hidden'));
+  ['step0','step1','step2','step3','step4','stepPartial','stepDone','stepP1','stepP2','stepPDone'].forEach(s=>document.getElementById(s).classList.add('hidden'));
   document.getElementById(step).classList.remove('hidden');
   const map={step1:1,step2:2,step3:3,step4:4,stepPartial:4,stepDone:4};
-  for(let i=1;i<=4;i++) document.getElementById('p'+i).classList.toggle('on', i<=map[step]);
+  const bar=document.getElementById('progressBar');
+  if(map[step]){
+    bar.classList.remove('hidden');
+    for(let i=1;i<=4;i++) document.getElementById('p'+i).classList.toggle('on', i<=map[step]);
+  } else {
+    bar.classList.add('hidden');
+  }
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function showPartial(title,desc){
@@ -321,6 +381,18 @@ function showPartial(title,desc){
   show('stepPartial');
 }
 function err(id,msg){ const el=document.getElementById(id); el.textContent=msg||''; el.className = msg?'alert err':'alert'; }
+
+/* ---------- step 0 : เลือกบทบาท ---------- */
+function chooseRole(role){
+  if(role==='teacher'){ window.location.href = TEACHER_URL; return; }
+  if(role==='student'){ show('step1'); return; }
+  if(role==='parent'){ show('stepP1'); return; }
+}
+function backToRole(){
+  document.getElementById('schoolName').textContent = 'เข้าสู่ระบบ';
+  document.getElementById('headerSub').textContent = 'เลือกบทบาทของท่านเพื่อเข้าสู่ระบบ';
+  show('step0');
+}
 
 /* ---------- step 1 ---------- */
 async function verify(){
@@ -478,6 +550,84 @@ async function submitEQ(){
     show('stepDone');
   }catch(e){ err('err4','เชื่อมต่อระบบไม่ได้ ลองกดส่งอีกครั้งนะ'); }
   finally{ btn.disabled=false; btn.textContent='ส่งแบบประเมิน EQ'; }
+}
+
+/* ============================================================
+   ผู้ปกครอง — ยืนยันตัวด้วยเลขประจำตัว+วันเกิดของนักเรียน (รหัสเดียวกับที่นักเรียนใช้)
+   แล้วประเมิน SDQ ฉบับผู้ปกครอง (ข้อคำถามดึงจาก server ผ่าน action:'verifyParent')
+   ============================================================ */
+let parentSession = { studentId:'', birthdate:'' };
+let SDQ_PARENT_ITEMS = [];
+
+async function verifyParent(){
+  const sid=document.getElementById('p_sid').value.trim();
+  const d=document.getElementById('p_bd').value, m=document.getElementById('p_bm').value, y=document.getElementById('p_by').value;
+  if(!sid||!d||!m||!y){ err('errP1','กรอกเลขประจำตัวและวันเกิดของนักเรียนให้ครบก่อนนะคะ'); return; }
+  const btn=document.getElementById('btnVerifyParent'); btn.disabled=true; btn.textContent='กำลังตรวจสอบ...';
+  err('errP1','');
+  try{
+    parentSession = { studentId:sid, birthdate:`${('0'+d).slice(-2)}/${('0'+m).slice(-2)}/${y}` };
+    const r=await api({action:'verifyParent',...parentSession});
+    if(!r.ok){ err('errP1',r.message); return; }
+    document.getElementById('schoolName').textContent = 'แบบประเมินสำหรับผู้ปกครอง · ' + (r.schoolName||'');
+    document.getElementById('headerSub').textContent = 'ปีการศึกษา ' + r.academicYear;
+    if(r.done){
+      show('stepPDone');
+      document.querySelector('#stepPDone p').innerHTML =
+        `ปีการศึกษานี้ท่านได้ทำแบบประเมินสำหรับ ${r.student.prefix}${r.student.firstName} ${r.student.lastName} ไปแล้ว 🎉<br>หากต้องการแก้ไข ติดต่อครูแนะแนวได้เลยนะคะ`;
+      return;
+    }
+    document.getElementById('helloP').textContent =
+      `ยืนยันตัวตนสำเร็จ · นักเรียน: ${r.student.prefix}${r.student.firstName} ${r.student.lastName} (${r.student.studentId})`;
+    SDQ_PARENT_ITEMS = r.items;
+    renderSDQParentForm();
+    show('stepP2');
+  }catch(e){ err('errP1','เชื่อมต่อระบบไม่ได้ ลองใหม่อีกครั้ง หรือแจ้งครูแนะแนว'); }
+  finally{ btn.disabled=false; btn.textContent='เข้าสู่ระบบ'; }
+}
+
+function renderSDQParentForm(){
+  const list=document.getElementById('sdqPList');
+  list.innerHTML='';
+  SDQ_PARENT_ITEMS.forEach((it,i)=>{
+    const q=document.createElement('div'); q.className='q'; q.id='qP'+i;
+    q.innerHTML = `<div class="qt"><span class="qn">${it.no}.</span><span>${it.text}</span></div>
+      <div class="opts">
+        ${[['0','ไม่จริง'],['1','ค่อนข้างจริง'],['2','จริง']].map(([v,l])=>`
+        <label class="opt"><input type="radio" name="sdqP${i}" value="${v}" onchange="updateCountP()"><span>${l}</span></label>`).join('')}
+      </div>`;
+    list.appendChild(q);
+  });
+  updateCountP();
+}
+function parentAnswers(){
+  return SDQ_PARENT_ITEMS.map((_,i)=>{
+    const c=document.querySelector(`input[name="sdqP${i}"]:checked`);
+    return c?c.value:null;
+  });
+}
+function updateCountP(){
+  const a=parentAnswers().filter(x=>x!==null).length;
+  document.getElementById('countP').textContent=`ตอบแล้ว ${a} / ${SDQ_PARENT_ITEMS.length} ข้อ`;
+}
+async function submitSDQParentForm(){
+  const a=parentAnswers();
+  const missing=a.map((x,i)=>x===null?i:-1).filter(i=>i>=0);
+  document.querySelectorAll('#sdqPList .q').forEach(q=>q.classList.remove('missing'));
+  if(missing.length){
+    missing.forEach(i=>document.getElementById('qP'+i).classList.add('missing'));
+    err('errP2',`ยังเหลืออีก ${missing.length} ข้อ (ข้อที่ตัวหนังสือเป็นสีแดง)`);
+    document.getElementById('qP'+missing[0]).scrollIntoView({behavior:'smooth',block:'center'});
+    return;
+  }
+  const btn=document.getElementById('btnSdqP'); btn.disabled=true; btn.textContent='กำลังส่ง...';
+  err('errP2','');
+  try{
+    const r=await api({action:'submitSDQParent',...parentSession,answers:a});
+    if(!r.ok){ err('errP2',r.message); return; }
+    show('stepPDone');
+  }catch(e){ err('errP2','เชื่อมต่อระบบไม่ได้ ลองกดส่งอีกครั้งนะ'); }
+  finally{ btn.disabled=false; btn.textContent='ส่งแบบประเมิน'; }
 }
 </script>
 </body>

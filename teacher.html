@@ -97,6 +97,8 @@ tbody tr{cursor:pointer}
   padding:24px 14px;overflow-y:auto;overflow-x:hidden;z-index:50;box-sizing:border-box}
 .overlay.hidden{display:none}
 .modal{background:#fff;border-radius:16px;max-width:720px;width:100%;flex:0 1 720px;padding:26px 24px;position:relative;overflow-wrap:anywhere;word-break:break-word;box-sizing:border-box;min-width:0}
+.modal-wide{max-width:820px;flex-basis:820px}
+.modal-wide-sm{max-width:760px;flex-basis:760px}
 .modal .close{position:absolute;top:14px;right:16px;background:#EDF1F5;border:none;border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer}
 .modal h2{font-size:20px;margin-bottom:2px}
 .modal .sub{color:var(--ink-soft);font-size:13.5px;margin-bottom:16px}
@@ -134,9 +136,15 @@ tbody tr{cursor:pointer}
 .scr-save:disabled{background:#B9CFC9}
 
 .hv-field{margin-bottom:14px;min-width:0}
+.hv-toc{position:sticky;top:0;background:#fff;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 0;margin-bottom:6px;border-bottom:1.5px solid var(--line);flex-wrap:wrap}
+.hv-toc select{padding:7px 10px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;color:var(--ink);background:#fff}
+#hvProgress{font-weight:600;white-space:nowrap}
 .hv-field > label{display:block;font-size:13px;font-weight:700;color:var(--ink-soft);margin-bottom:4px;overflow-wrap:anywhere;word-break:break-word}
 .hv-field input[type=text],.hv-field input[type=number]{width:100%;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;box-sizing:border-box}
 .hv-field textarea{width:100%;min-height:70px;padding:8px 10px;border:1.5px solid var(--line);border-radius:8px;font-family:inherit;font-size:14px;resize:vertical;box-sizing:border-box}
+.hv-input-warn{border-color:var(--warn) !important;background:#FFFAF0}
+.hv-warn{font-size:12px;color:#9A6B1E;margin-top:3px}
 .hv-subgroup{margin-top:2px;margin-bottom:6px}
 .hv-photo-box{border:1.5px dashed var(--line);border-radius:10px;padding:14px;text-align:center}
 .hv-photo-box img{max-width:100%;max-height:180px;border-radius:8px;display:block;margin:0 auto 8px}
@@ -155,7 +163,7 @@ tbody tr{cursor:pointer}
 
 /* ---------- responsive (จอมือถือ) ---------- */
 @media (max-width:640px){
-  .modal{padding:18px 16px;border-radius:12px;max-width:100%}
+  .modal, .modal-wide, .modal-wide-sm{padding:18px 16px;border-radius:12px;max-width:100%;flex-basis:auto}
   .repgrid, .scr-basic{grid-template-columns:1fr}
   .scr-trend{flex-direction:column}
   .charts{grid-template-columns:1fr}
@@ -264,14 +272,14 @@ tbody tr{cursor:pointer}
 
 <!-- MODAL: ข้อมูลรู้จักนักเรียน/เยี่ยมบ้าน (ฟอร์มกรอกข้อมูล — ปิดการแตะพื้นหลังเพื่อปิด กันข้อมูลหายจากการแตะพลาด) -->
 <div class="overlay hidden" id="hvOverlay">
-  <div class="modal" id="hvModal" style="max-width:820px;flex-basis:820px">
+  <div class="modal modal-wide" id="hvModal">
     <button class="close" onclick="confirmCloseForm(closeHomeVisitForm)">✕</button>
     <div id="hvContent">กำลังโหลด...</div>
   </div>
 </div>
 
 <div class="overlay hidden" id="sdqTOverlay">
-  <div class="modal" id="sdqTModal" style="max-width:820px;flex-basis:820px">
+  <div class="modal modal-wide" id="sdqTModal">
     <button class="close" onclick="confirmCloseForm(closeSDQTeacherForm)">✕</button>
     <div id="sdqTContent">กำลังโหลด...</div>
   </div>
@@ -279,7 +287,7 @@ tbody tr{cursor:pointer}
 
 <!-- MODAL: แบบคัดกรองรายบุคคล (ฟอร์มกรอกข้อมูล — ปิดการแตะพื้นหลังเพื่อปิด กันข้อมูลหายจากการแตะพลาด) -->
 <div class="overlay hidden" id="screenOverlay">
-  <div class="modal" id="screenModal" style="max-width:760px;flex-basis:760px">
+  <div class="modal modal-wide-sm" id="screenModal">
     <button class="close" onclick="confirmCloseForm(closeScreeningForm)">✕</button>
     <div id="screenContent" style="min-width:0;width:100%">กำลังโหลด...</div>
   </div>
@@ -346,6 +354,74 @@ function handleSaveError(res, errElId, closeFn){
     return true;
   }
   return false;
+}
+
+/* ============================================================
+   Draft autosave — กันข้อมูลหายจากเน็ตหลุด/แบตหมด/ปิดพลาด
+   เก็บฉบับร่างไว้ใน localStorage ของเครื่อง ระหว่างกรอก แล้วลบทิ้งทันทีที่บันทึกขึ้นเซิร์ฟเวอร์สำเร็จ
+   ============================================================ */
+function debounce(fn, ms){
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(()=>fn(...args), ms); };
+}
+function draftKey(formType, studentId, semester){ return `careDraft_${formType}_${studentId}_${semester}`; }
+function saveDraft(formType, studentId, semester, answers){
+  try{ localStorage.setItem(draftKey(formType,studentId,semester), JSON.stringify({answers, savedAt: Date.now()})); }catch(e){}
+}
+function loadDraft(formType, studentId, semester){
+  try{ const raw = localStorage.getItem(draftKey(formType,studentId,semester)); return raw ? JSON.parse(raw) : null; }catch(e){ return null; }
+}
+function clearDraft(formType, studentId, semester){
+  try{ localStorage.removeItem(draftKey(formType,studentId,semester)); }catch(e){}
+}
+// ก้อนข้อความลอยมุมล่างขวา บอกว่าบันทึกร่างอัตโนมัติแล้ว (ให้ครูมั่นใจว่าระบบทำงานอยู่ ไม่ต้องกดอะไรเอง)
+// ก้อนข้อความลอยมุมล่างขวา ใช้แทน alert()/showDraftSavedIndicator เดิม — kind: 'ok'(เทา, หายเร็ว) | 'err'(แดง, อยู่นานกว่า)
+let toastTimer = null;
+function toast(msg, kind){
+  let el = document.getElementById('toastBox');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'toastBox';
+    el.style.cssText = 'position:fixed;bottom:16px;right:16px;left:16px;max-width:360px;margin-left:auto;color:#fff;padding:10px 16px;border-radius:12px;font-size:13px;z-index:300;opacity:0;transition:opacity .3s;pointer-events:none;box-shadow:0 4px 16px rgba(0,0,0,.15)';
+    document.body.appendChild(el);
+  }
+  el.style.background = kind==='err' ? 'var(--risk)' : 'var(--ink)';
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ el.style.opacity='0'; }, kind==='err' ? 3200 : 1500);
+}
+function showDraftSavedIndicator(){ toast('💾 บันทึกร่างอัตโนมัติแล้ว'); }
+// หน้าจอ "พบข้อมูลที่กรอกค้างไว้" ให้เลือกใช้ต่อหรือเริ่มใหม่ — แสดงก่อน render ฟอร์มจริงถ้าเจอร่างเก่า
+function renderDraftChoice(contentId, savedAt, onUse, onDiscard){
+  const el = document.getElementById(contentId);
+  const t = new Date(savedAt).toLocaleString('th-TH');
+  el.innerHTML = `
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:36px">📝</div>
+      <h2 style="margin-top:8px">พบข้อมูลที่กรอกค้างไว้</h2>
+      <p class="sub">ระบบบันทึกร่างอัตโนมัติไว้เมื่อ ${t} (ยังไม่ได้กด "บันทึก" ตอนนั้น)</p>
+      <div style="display:flex;gap:10px;margin-top:14px;max-width:360px;margin-left:auto;margin-right:auto">
+        <button class="btn-main" id="btnUseDraft" style="flex:1;margin-top:0">ใช้ข้อมูลนี้ต่อ</button>
+        <button class="btn-sm" id="btnDiscardDraft" style="flex:1">เริ่มใหม่</button>
+      </div>
+    </div>`;
+  document.getElementById('btnUseDraft').onclick = onUse;
+  document.getElementById('btnDiscardDraft').onclick = onDiscard;
+}
+
+/* หน้าจอเลือกภาคเรียนแบบปุ่ม — แทนที่ native prompt() เดิม ซึ่งพิมพ์ผิด/พิมพ์เลขไทยแล้วกลายเป็นคนละ
+   ภาคเรียนได้ง่าย (สร้างแถวใหม่ในชีตแทนที่จะแก้ของเดิม) และกดยากบนมือถือ */
+function pickSemester(contentId, title, onPick){
+  const el = document.getElementById(contentId);
+  el.innerHTML = `
+    <h2>${title}</h2>
+    <p class="desc">เลือกภาคเรียนที่ต้องการกรอก/แก้ไข</p>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn-main" style="flex:1;margin-top:0" data-sem="1">ภาคเรียนที่ 1</button>
+      <button class="btn-main" style="flex:1;margin-top:0;background:var(--ink)" data-sem="2">ภาคเรียนที่ 2</button>
+    </div>`;
+  el.querySelectorAll('button[data-sem]').forEach(b=>{ b.onclick = () => onPick(b.dataset.sem); });
 }
 
 // ใช้กับปุ่ม ✕ ของฟอร์มที่มีการกรอกข้อมูล (เยี่ยมบ้าน/คัดกรอง/SDQ ครู) — ถามยืนยันก่อนปิดเสมอ
@@ -1148,7 +1224,7 @@ async function printSummaryFull(){
 
 function printRoom(){
   const room = document.getElementById('fPrintRoom').value;
-  if(!room){ alert('ไม่มีห้องให้เลือกพิมพ์ (ยังไม่มีข้อมูลนักเรียนในห้องใดเลย)'); return; }
+  if(!room){ toast('ไม่มีห้องให้เลือกพิมพ์ (ยังไม่มีข้อมูลนักเรียนในห้องใดเลย)','err'); return; }
   const rs = DATA.filter(x=>x.room===room).sort((a,b)=> (a.no||'')>(b.no||'')?1:-1);
   const y = document.getElementById('yearLabel').textContent;
   const modeLabel = ACTIVITY_MODE==='eq' ? ' (เฉพาะผล EQ)' : ACTIVITY_MODE==='sdq' ? ' (เฉพาะผล SDQ)' : ACTIVITY_MODE==='screening' ? ' (เฉพาะคัดกรองรายบุคคล)' : ACTIVITY_MODE==='homevisit' ? ' (เฉพาะเยี่ยมบ้าน)' : '';
@@ -1212,6 +1288,7 @@ function printRoom(){
 let SCREEN_SCHEMA = null;
 let REDFLAG_OPTS = null;
 let CURRENT_SCREEN_ID = null;
+let CURRENT_SCREEN_SEMESTER = null;
 
 // ต้องเรียงลำดับเหมือนฝั่งเซิร์ฟเวอร์เป๊ะๆ (index ใช้จับคู่ checkbox กับค่าที่บันทึก)
 function flattenChecks_(entries){
@@ -1226,6 +1303,11 @@ function flattenChecks_(entries){
 async function openScreeningForm(studentId){
   CURRENT_SCREEN_ID = studentId;
   document.getElementById('screenOverlay').classList.remove('hidden');
+  pickSemester('screenContent', '📋 แบบคัดกรองนักเรียนรายบุคคล', (semester)=>loadScreeningForm(studentId, semester));
+}
+
+async function loadScreeningForm(studentId, semester){
+  CURRENT_SCREEN_SEMESTER = semester;
   document.getElementById('screenContent').innerHTML = 'กำลังโหลด...';
   try{
     if(!SCREEN_SCHEMA){
@@ -1234,11 +1316,40 @@ async function openScreeningForm(studentId){
       SCREEN_SCHEMA = s.sections;
       REDFLAG_OPTS = s.redFlagOptions;
     }
-    const semester = prompt('ภาคเรียนที่ (1 หรือ 2)', '1') || '1';
     const existing = await api({action:'getIndividualScreening', token:TOKEN, studentId, semester});
     if(handleApiResult(existing, 'screenContent', closeScreeningForm)) return;
-    renderScreeningForm(studentId, semester, existing.exists ? existing : null);
+
+    const draft = loadDraft('screen', studentId, semester);
+    if(draft && draft.answers){
+      // ห่อ draft ให้มี savedAt/savedBy จากเซิร์ฟเวอร์ด้วย ไม่งั้นข้อความ "บันทึกล่าสุดโดย..." จะหายตอนกู้ร่าง
+      // (ต้องมี shape เดียวกับที่ getIndividualScreening ส่งกลับมา)
+      const merged = Object.assign({}, draft.answers, { savedAt: existing.savedAt, savedBy: existing.savedBy });
+      renderDraftChoice('screenContent', draft.savedAt,
+        () => { renderScreeningForm(studentId, semester, merged); attachScreenAutosave(); },
+        () => { clearDraft('screen', studentId, semester); renderScreeningForm(studentId, semester, existing.exists ? existing : null); attachScreenAutosave(); });
+    } else {
+      renderScreeningForm(studentId, semester, existing.exists ? existing : null);
+      attachScreenAutosave();
+    }
   }catch(e){ document.getElementById('screenContent').innerHTML = '<div class="alert err" style="display:block">โหลดแบบฟอร์มไม่สำเร็จ</div>'; }
+}
+function updateScreenProgress(sections){
+  const el = document.getElementById('screenProgress');
+  if(!el) return;
+  const answered = Object.values(sections).filter(s=>s.trend).length;
+  el.textContent = `ตอบแนวโน้มแล้ว ${answered}/${SCREEN_SCHEMA.length} หมวด`;
+}
+function attachScreenAutosave(){
+  const el = document.getElementById('screenContent');
+  const trigger = debounce(()=>{
+    const a = collectScreeningAnswers();
+    saveDraft('screen', CURRENT_SCREEN_ID, CURRENT_SCREEN_SEMESTER, a);
+    updateScreenProgress(a.sections);
+    showDraftSavedIndicator();
+  }, 800);
+  el.oninput = trigger;
+  el.onchange = trigger;
+  updateScreenProgress(collectScreeningAnswers().sections);
 }
 function closeScreeningForm(){ document.getElementById('screenOverlay').classList.add('hidden'); }
 
@@ -1247,6 +1358,7 @@ function renderScreeningForm(studentId, semester, data){
   const redFlag = data ? (data.redFlag||{}) : {};
   const sections = data ? data.sections : {};
   let html = `<h2>📋 แบบคัดกรองนักเรียนรายบุคคล</h2><div class="sub">เลขประจำตัว ${studentId} · ภาคเรียนที่ ${semester}</div>`;
+  html += `<div class="hv-toc"><span></span><span class="sub" id="screenProgress">ตอบแนวโน้มแล้ว 0/${SCREEN_SCHEMA.length} หมวด</span></div>`;
 
   html += `<div class="scr-basic" style="margin-top:14px">
     <div><label>ชื่อเล่น</label><input id="sb_nickname" value="${fld2(basic.nickname)}"></div>
@@ -1318,7 +1430,7 @@ function toggleRedFlagWarning(){
 
 function fld2(v){ return (v===undefined||v===null) ? '' : escHtml(v); }
 
-async function saveScreeningForm(studentId, semester){
+function collectScreeningAnswers(){
   const basic = {
     nickname: document.getElementById('sb_nickname').value,
     gender: document.getElementById('sb_gender').value,
@@ -1329,7 +1441,7 @@ async function saveScreeningForm(studentId, semester){
   const rfSel = document.querySelector('input[name="redflag_opt"]:checked');
   const redFlag = { selected: rfSel?rfSel.value:'', note: document.getElementById('redflag_note').value };
   const sections = {};
-  document.querySelectorAll('.scr-sec').forEach(secEl=>{
+  document.querySelectorAll('.scr-sec[data-sec]').forEach(secEl=>{
     const id = secEl.dataset.sec;
     const risk = [...secEl.querySelectorAll('input[data-kind="risk"]')].map(el=>el.checked);
     const problem = [...secEl.querySelectorAll('input[data-kind="problem"]')].map(el=>el.checked);
@@ -1337,6 +1449,11 @@ async function saveScreeningForm(studentId, semester){
     const trendEl = secEl.querySelector(`input[name="trend_${id}"]:checked`);
     sections[id] = { risk, problem, comment, trend: trendEl?trendEl.value:'' };
   });
+  return { basic, redFlag, sections };
+}
+
+async function saveScreeningForm(studentId, semester){
+  const { basic, redFlag, sections } = collectScreeningAnswers();
 
   const btn = document.getElementById('btnScreenSave');
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
@@ -1344,6 +1461,7 @@ async function saveScreeningForm(studentId, semester){
   try{
     const r = await api({action:'saveIndividualScreening', token:TOKEN, studentId, semester, basic, redFlag, sections});
     if(handleSaveError(r, 'screenErr', closeScreeningForm)) return;
+    clearDraft('screen', studentId, semester);
     document.getElementById('screenContent').innerHTML = `
       <div style="text-align:center;padding:20px 0">
         <div style="font-size:40px">✅</div>
@@ -1359,10 +1477,16 @@ async function saveScreeningForm(studentId, semester){
 /* ---------- ข้อมูลรู้จักนักเรียน/เยี่ยมบ้าน (เฟส 6) ---------- */
 let HV_SCHEMA = null;
 let CURRENT_HV_ID = null;
+let CURRENT_HV_SEMESTER = null;
 
 async function openHomeVisitForm(studentId){
   CURRENT_HV_ID = studentId;
   document.getElementById('hvOverlay').classList.remove('hidden');
+  pickSemester('hvContent', '🏠 ข้อมูลรู้จักนักเรียน (เยี่ยมบ้าน)', (semester)=>loadHomeVisitForm(studentId, semester));
+}
+
+async function loadHomeVisitForm(studentId, semester){
+  CURRENT_HV_SEMESTER = semester;
   document.getElementById('hvContent').innerHTML = 'กำลังโหลด...';
   try{
     if(!HV_SCHEMA){
@@ -1370,16 +1494,53 @@ async function openHomeVisitForm(studentId){
       if(handleApiResult(s, 'hvContent', closeHomeVisitForm, 'โหลดแบบฟอร์มไม่สำเร็จ')) return;
       HV_SCHEMA = s.fields;
     }
-    const semester = prompt('ภาคเรียนที่ (1 หรือ 2)', '1') || '1';
     const existing = await api({action:'getHomeVisit', token:TOKEN, studentId, semester});
     if(handleApiResult(existing, 'hvContent', closeHomeVisitForm)) return;
-    renderHomeVisitForm(studentId, semester, existing);
+
+    const draft = loadDraft('hv', studentId, semester);
+    if(draft && draft.answers){
+      renderDraftChoice('hvContent', draft.savedAt,
+        () => { renderHomeVisitForm(studentId, semester, {exists:true, answers:draft.answers, savedAt:existing.savedAt, savedBy:existing.savedBy}); attachHvAutosave(); },
+        () => { clearDraft('hv', studentId, semester); renderHomeVisitForm(studentId, semester, existing); attachHvAutosave(); });
+    } else {
+      renderHomeVisitForm(studentId, semester, existing);
+      attachHvAutosave();
+    }
   }catch(e){ document.getElementById('hvContent').innerHTML = '<div class="alert err" style="display:block">โหลดแบบฟอร์มไม่สำเร็จ</div>'; }
+}
+function countHvFilled(answers){
+  let filled = 0;
+  HV_SCHEMA.forEach(f=>{
+    const v = answers[f.id];
+    if(f.type==='checkbox'){ if(v && v.length) filled++; }
+    else if(f.type==='radio_sub'){ if(v && v.main) filled++; }
+    else if(v !== undefined && v !== null && String(v).trim() !== '') filled++;
+  });
+  return filled;
+}
+function updateHvProgress(answers){
+  const el = document.getElementById('hvProgress');
+  if(el) el.textContent = `กรอกแล้ว ${countHvFilled(answers)}/${HV_SCHEMA.length} ช่อง`;
+}
+function attachHvAutosave(){
+  const el = document.getElementById('hvContent');
+  const trigger = debounce(()=>{
+    const answers = collectHvAnswers();
+    saveDraft('hv', CURRENT_HV_ID, CURRENT_HV_SEMESTER, answers);
+    updateHvProgress(answers);
+    showDraftSavedIndicator();
+  }, 800);
+  el.oninput = trigger;
+  el.onchange = trigger; // เผื่อ radio/checkbox ที่บาง browser ไม่ยิง input event ให้
+  updateHvProgress(collectHvAnswers()); // แสดงตัวเลขเริ่มต้นทันที ไม่ต้องรอพิมพ์ก่อน
 }
 function closeHomeVisitForm(){ document.getElementById('hvOverlay').classList.add('hidden'); }
 
 /* ---------- SDQ ฉบับครูที่ปรึกษาประเมินนักเรียน ---------- */
 const SDQ_CHOICES = [[0,'ไม่จริง'],[1,'ค่อนข้างจริง'],[2,'จริง']];
+
+let CURRENT_SDQT_ID = null;
+let CURRENT_SDQT_YEAR = null;
 
 async function openSDQTeacherForm(studentId, studentName){
   document.getElementById('sdqTOverlay').classList.remove('hidden');
@@ -1388,6 +1549,8 @@ async function openSDQTeacherForm(studentId, studentName){
     const r = await api({action:'getSDQTeacherForm', token:TOKEN, studentId});
     if(handleApiResult(r, 'sdqTContent', closeSDQTeacherForm)) return;
     if(r.done){
+      // ประเมินไปแล้ว = ร่างที่ค้างอยู่ไม่มีประโยชน์แล้ว ล้างทิ้งกันสับสนรอบหน้า
+      clearDraft('sdqT', studentId, r.academicYear);
       document.getElementById('sdqTContent').innerHTML = `
         <h2>📝 SDQ ฉบับครูประเมินนักเรียน</h2>
         <div class="sub">${escHtml(studentName)} (${studentId}) · ปีการศึกษา ${r.academicYear}</div>
@@ -1398,23 +1561,61 @@ async function openSDQTeacherForm(studentId, studentName){
         <button class="btn-sm" style="margin-top:14px" onclick="closeSDQTeacherForm()">ปิดหน้าต่างนี้</button>`;
       return;
     }
-    renderSDQTeacherForm(studentId, studentName, r);
+    CURRENT_SDQT_ID = studentId;
+    CURRENT_SDQT_YEAR = r.academicYear;
+
+    // SDQ ทำได้ครั้งเดียวต่อปี ไม่มีภาคเรียน จึงใช้ปีการศึกษาเป็น key ของร่างแทน
+    const draft = loadDraft('sdqT', studentId, r.academicYear);
+    if(draft && draft.answers){
+      renderDraftChoice('sdqTContent', draft.savedAt,
+        () => { renderSDQTeacherForm(studentId, studentName, r, draft.answers); attachSdqTAutosave(); },
+        () => { clearDraft('sdqT', studentId, r.academicYear); renderSDQTeacherForm(studentId, studentName, r); attachSdqTAutosave(); });
+    } else {
+      renderSDQTeacherForm(studentId, studentName, r);
+      attachSdqTAutosave();
+    }
   }catch(e){ document.getElementById('sdqTContent').innerHTML = '<div class="alert err" style="display:block">โหลดแบบประเมินไม่สำเร็จ</div>'; }
+}
+function collectSdqTAnswers(){
+  const answers = [];
+  for(let n=1;n<=25;n++){
+    const sel = document.querySelector(`input[name="sdqT_${n}"]:checked`);
+    answers.push(sel ? Number(sel.value) : '');
+  }
+  return answers;
+}
+function updateSdqTProgress(answers){
+  const el = document.getElementById('sdqTProgress');
+  if(el) el.textContent = `ตอบแล้ว ${answers.filter(a=>a!=='').length}/25 ข้อ`;
+}
+function attachSdqTAutosave(){
+  const el = document.getElementById('sdqTContent');
+  const trigger = debounce(()=>{
+    const answers = collectSdqTAnswers();
+    saveDraft('sdqT', CURRENT_SDQT_ID, CURRENT_SDQT_YEAR, answers);
+    updateSdqTProgress(answers);
+    showDraftSavedIndicator();
+  }, 800);
+  el.oninput = trigger;
+  el.onchange = trigger;
+  updateSdqTProgress(collectSdqTAnswers());
 }
 function closeSDQTeacherForm(){ document.getElementById('sdqTOverlay').classList.add('hidden'); }
 
-function renderSDQTeacherForm(studentId, studentName, form){
+function renderSDQTeacherForm(studentId, studentName, form, saved){
   let html = `<h2>📝 SDQ ฉบับครูประเมินนักเรียน</h2>
     <div class="sub">${escHtml(studentName)} (${studentId}) · ปีการศึกษา ${form.academicYear}</div>
     <div class="sub" style="margin-top:4px">พิจารณาพฤติกรรมของนักเรียนในช่วง 6 เดือนที่ผ่านมา แล้วเลือกคำตอบที่ตรงที่สุดในแต่ละข้อ</div>
+    <div class="hv-toc"><span></span><span class="sub" id="sdqTProgress">ตอบแล้ว 0/25 ข้อ</span></div>
     <div class="scr-sec">`;
-  form.items.forEach(it=>{
+  form.items.forEach((it,i)=>{
+    const v = saved ? saved[i] : '';
     html += `<div style="padding:10px 0;border-bottom:1px solid #F1F4F1">
       <div style="font-size:14px;margin-bottom:6px"><b>${it.no}.</b> ${it.text}</div>
       <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${SDQ_CHOICES.map(([v,label])=>`
+        ${SDQ_CHOICES.map(([val,label])=>`
           <label class="scr-check" style="border:1.5px solid var(--line);border-radius:9px;padding:7px 12px;flex:1 1 0;justify-content:center;border-bottom:1.5px solid var(--line)">
-            <input type="radio" name="sdqT_${it.no}" value="${v}"><span style="flex:0 1 auto">${label}</span>
+            <input type="radio" name="sdqT_${it.no}" value="${val}" ${String(v)===String(val)?'checked':''}><span style="flex:0 1 auto">${label}</span>
           </label>`).join('')}
       </div>
     </div>`;
@@ -1426,11 +1627,7 @@ function renderSDQTeacherForm(studentId, studentName, form){
 }
 
 async function saveSDQTeacherForm(studentId){
-  const answers = [];
-  for(let n=1;n<=25;n++){
-    const sel = document.querySelector(`input[name="sdqT_${n}"]:checked`);
-    answers.push(sel ? Number(sel.value) : '');
-  }
+  const answers = collectSdqTAnswers();
   const missing = answers.map((a,i)=>a===''?i+1:null).filter(x=>x!==null);
   const errEl = document.getElementById('sdqTErr');
   if(missing.length){
@@ -1443,6 +1640,7 @@ async function saveSDQTeacherForm(studentId){
   try{
     const r = await api({action:'submitSDQTeacher', token:TOKEN, studentId, answers});
     if(handleSaveError(r, 'sdqTErr', closeSDQTeacherForm)) return;
+    clearDraft('sdqT', studentId, CURRENT_SDQT_YEAR);
     document.getElementById('sdqTContent').innerHTML = `
       <h2>📝 SDQ ฉบับครูประเมินนักเรียน</h2>
       <div class="alert" style="display:block;background:var(--accent-soft);color:var(--ink);border:1.5px solid var(--accent);margin-top:14px">
@@ -1461,11 +1659,22 @@ function renderHomeVisitForm(studentId, semester, data){
     ? `<div class="sub" style="margin-top:4px">🔄 นี่คือข้อมูลที่เคยบันทึกไว้ แก้ไขแล้วกดบันทึกเพื่ออัปเดต</div>`
     : `<div class="sub" style="margin-top:4px;color:var(--accent)">✨ ดึงข้อมูลบางส่วน (ที่อยู่ ผู้ปกครอง การเดินทาง ฯลฯ) มาให้จากข้อมูลรายปีแล้ว กรอกส่วนที่เหลือให้ครบ</div>`;
 
-  let lastSection = null;
+  // สารบัญ + progress — ฟอร์มนี้ยาว 26 หมวด ~100 ช่อง ไม่มีจุดนี้จะหาที่ค้างไม่เจอ
+  const sectionNames = [...new Set(HV_SCHEMA.map(f=>f.section))];
+  html += `<div class="hv-toc">
+    <select id="hvJump" onchange="if(this.value){document.getElementById(this.value).scrollIntoView({behavior:'smooth',block:'start'});this.value='';}">
+      <option value="">📑 ไปที่หมวด...</option>
+      ${sectionNames.map((s,i)=>`<option value="hvsec-${i}">${s}</option>`).join('')}
+    </select>
+    <span class="sub" id="hvProgress">กรอกแล้ว 0/0 ช่อง</span>
+  </div>`;
+
+  let lastSection = null, secIdx = -1;
   HV_SCHEMA.forEach(f=>{
     if(f.section !== lastSection){
       if(lastSection!==null) html += `</div>`;
-      html += `<div class="scr-sec"><h4>${f.section}</h4>`;
+      secIdx++;
+      html += `<div class="scr-sec" id="hvsec-${secIdx}"><h4>${f.section}</h4>`;
       lastSection = f.section;
     }
     html += hvField(f, answers[f.id]);
@@ -1479,11 +1688,41 @@ function renderHomeVisitForm(studentId, semester, data){
   document.getElementById('hvContent').innerHTML = html;
 }
 
+// กำหนด attribute ช่วย validate ตาม id ของ field เฉพาะที่รู้รูปแบบชัดเจน (เบอร์โทร/รหัสไปรษณีย์/น้ำหนัก/ส่วนสูง)
+// ไม่บล็อกการพิมพ์หรือบันทึก แค่ช่วยให้คีย์บอร์ดมือถือขึ้นถูกแบบ + เตือนด้วยสีถ้าเห็นว่าค่าผิดปกติชัดเจน
+function hvValidateAttrs(f){
+  const id = f.id;
+  if(/Phone$/.test(id)) return `inputmode="tel" maxlength="10" onblur="hvCheckPattern(this,/^0[0-9]{8,9}$/,'เบอร์โทรควรเป็นตัวเลข 9-10 หลัก ขึ้นต้นด้วย 0')"`;
+  if(/Zip$/.test(id)) return `inputmode="numeric" maxlength="5" onblur="hvCheckPattern(this,/^[0-9]{5}$/,'รหัสไปรษณีย์ควรเป็นตัวเลข 5 หลัก')"`;
+  if(id==='weight') return `inputmode="decimal" onblur="hvCheckRange(this,10,200,'น้ำหนักดูผิดปกติ (10-200 กก.)')"`;
+  if(id==='height') return `inputmode="decimal" onblur="hvCheckRange(this,80,220,'ส่วนสูงดูผิดปกติ (80-220 ซม.)')"`;
+  if(/Income$/.test(id) || id==='travelCost' || id==='housingRent') return `inputmode="numeric"`;
+  if(/Age$/.test(id)) return `inputmode="numeric" maxlength="3"`;
+  return '';
+}
+// เตือนแบบไม่บล็อก — ใส่กรอบสีส้ม + ข้อความเตือนใต้ช่อง แต่ยังพิมพ์/บันทึกต่อได้ตามปกติ
+// (ตั้งใจไม่บล็อก เพราะข้อมูลจริงบางเคสอาจไม่เข้ารูปแบบทั่วไป เช่นเบอร์บ้าน หรือกรณีพิเศษอื่นๆ)
+function hvShowFieldWarn(el, msg){
+  let warn = el.parentElement.querySelector('.hv-warn');
+  if(!msg){ el.classList.remove('hv-input-warn'); if(warn) warn.remove(); return; }
+  el.classList.add('hv-input-warn');
+  if(!warn){ warn = document.createElement('div'); warn.className='hv-warn'; el.insertAdjacentElement('afterend', warn); }
+  warn.textContent = '⚠️ ' + msg;
+}
+function hvCheckPattern(el, re, msg){
+  const v = el.value.trim();
+  hvShowFieldWarn(el, (v && !re.test(v)) ? msg : '');
+}
+function hvCheckRange(el, min, max, msg){
+  const v = parseFloat(el.value);
+  hvShowFieldWarn(el, (el.value.trim() && (isNaN(v) || v<min || v>max)) ? msg : '');
+}
+
 function hvField(f, value){
   const esc = s => String(s===undefined||s===null?'':s).replace(/"/g,'&quot;');
   const label = f.label ? `<label>${f.label}</label>` : '';
   if(f.type==='text' || f.type==='number'){
-    return `<div class="hv-field">${label}<input type="${f.type}" data-hv="${f.id}" value="${esc(value)}"></div>`;
+    return `<div class="hv-field">${label}<input type="${f.type}" data-hv="${f.id}" value="${esc(value)}" ${hvValidateAttrs(f)}></div>`;
   }
   if(f.type==='textarea'){
     return `<div class="hv-field">${label}<textarea data-hv="${f.id}">${esc(value)}</textarea></div>`;
@@ -1562,10 +1801,11 @@ async function handlePhotoUpload(inputEl, fieldId){
     let img = box.querySelector('img');
     if(!img){ img = document.createElement('img'); box.insertBefore(img, box.firstChild); }
     img.src = driveThumb(r.url,300);
+    if(CURRENT_HV_ID && CURRENT_HV_SEMESTER){ saveDraft('hv', CURRENT_HV_ID, CURRENT_HV_SEMESTER, collectHvAnswers()); showDraftSavedIndicator(); }
   }catch(e){ statusEl.textContent = 'อัปโหลดไม่สำเร็จ ลองใหม่อีกครั้ง'; }
 }
 
-async function saveHomeVisitForm(studentId, semester){
+function collectHvAnswers(){
   const answers = {};
   HV_SCHEMA.forEach(f=>{
     if(f.type==='checkbox'){
@@ -1582,6 +1822,11 @@ async function saveHomeVisitForm(studentId, semester){
       answers[f.id] = el?el.value:'';
     }
   });
+  return answers;
+}
+
+async function saveHomeVisitForm(studentId, semester){
+  const answers = collectHvAnswers();
 
   const btn = document.getElementById('btnHvSave');
   btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
@@ -1589,6 +1834,7 @@ async function saveHomeVisitForm(studentId, semester){
   try{
     const r = await api({action:'saveHomeVisit', token:TOKEN, studentId, semester, answers});
     if(handleSaveError(r, 'hvErr', closeHomeVisitForm)) return;
+    clearDraft('hv', studentId, semester);
     document.getElementById('hvContent').innerHTML = `
       <div style="text-align:center;padding:20px 0">
         <div style="font-size:40px">✅</div>
